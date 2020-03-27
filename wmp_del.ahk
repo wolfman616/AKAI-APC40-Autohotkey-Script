@@ -7,7 +7,7 @@ sleep 250
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
 FileRecycle, % media.sourceURL
-iniwrite, media.sourceURL, Deletions.ini, yep_gone
+iniwrite, %media%, Deletions.ini, yep_gone
 sleep 50 
 ;MsgBox, % controls.currentPosition . "`n"
  ;       . controls.currentPositionString

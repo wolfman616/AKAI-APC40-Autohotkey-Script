@@ -1,7 +1,8 @@
-﻿#Persistent
-#SingleInstance force
+﻿
 SendMode Input ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
+#Persistent
+#SingleInstance force
 timeoutreload := 4000
 if A_OSVersion in WIN_NT4,WIN_95,WIN_98,WIN_ME ; if not xp or 2000 quit
 {
@@ -49,9 +50,9 @@ bounceofflocreal:=bounceoffloc+ 31 ;32 -39 top row
 bounceendpause:=  300
 ;IniDelete, wmp.ini, status, 
 run wmp_pstate.ahk
-sleep 2000
+sleep 3000
 iniRead, playstateini, wmp.ini, status
-SEND #!z
+;SEND #!z
 return ; DO NOT REMOVE
 
 MidiRules: ; Tip is: ++++++ for where you might want to add
@@ -79,7 +80,7 @@ SetDisplayBrightness(round(byte2 / 1.27))
 }
 
 
-if  (byte1=96) && (statusbyte=144) ;  APC MASTER FADER      ;183=FADER 8
+if  (byte1=96) && (statusbyte=144) ;  BANK SELECT RIGHT
 {
 Send       {Media_Next}
 }
@@ -290,8 +291,8 @@ return
 
 ReadIni() ; also set up the tray Menu
 {
-Menu, tray, add, MidiSet ; set midi ports tray item
-Menu, tray, add, ResetAll ; Delete the ini file for testing --------------------------------
+;Menu, tray, add, MidiSet ; set midi ports tray item
+;Menu, tray, add, ResetAll ; Delete the ini file for testing --------------------------------
 
 global MidiInDevice, MidiOutDevice, version ; version var is set at the beginning.
 IfExist, %version%io.ini
@@ -301,12 +302,8 @@ IniRead, MidiOutDevice, %version%io.ini, Settings, MidiOutDevice , %MidiOutDevic
 }
 Else ; no ini exists and this is either the first run or reset settings.
 {
-MsgBox, 1, No ini file found, Select midi ports?
-IfMsgBox, Cancel
+MsgBox, 1, No ini file found, Select midi ports.
 ExitApp
-IfMsgBox, yes
-gosub, midiset
-;WriteIni()
 }
 }
 
@@ -364,10 +361,8 @@ MidiOut := 1 ;set var to 1 as valid state.
 If (%MidiIn% = 0) Or (%MidiOut% = 0)
 {
 MsgBox, 49, Midi Port Error!,%MidiInerr%`n%MidiOuterr%`n`nLaunch Midi Port Selection!
-IfMsgBox, Cancel
+
 ExitApp
-midiok = 0 ; Not sure if this is really needed now....
-Gosub, MidiSet ;Gui, show Midi Port Selection
 }
 Else
 {
@@ -380,37 +375,37 @@ Return
 ; ------------------ end of port testing ---------------------------
 
 
-MidiSet: ; midi port selection gui
+;MidiSet: ; midi port selection gui
 
 ; ------------- MIDI INPUT SELECTION -----------------------
 ;Gui, Destroy
 ;Gosub, Suspendit
-Gui, 6: Destroy
-Gui, 2: Destroy
-Gui, 3: Destroy
-Gui, 4: Destroy
+;Gui, 6: Destroy
+;Gui, 2: Destroy
+;Gui, 3: Destroy
+;Gui, 4: Destroy
 ;Gui, 5: Destroy
-Gui, 4: +LastFound +AlwaysOnTop +Caption +ToolWindow ;-SysMenu
-Gui, 4: Font, s12
-Gui, 4: add, text, x10 y10 w300 cmaroon, Select Midi Ports. ; Text title
-Gui, 4: Font, s8
-Gui, 4: Add, Text, x10 y+10 w175 Center , Midi In Port ;Just text label
-Gui, 4: font, s8
+;Gui, 4: +LastFound +AlwaysOnTop +Caption +ToolWindow ;-SysMenu
+;Gui, 4: Font, s12
+;Gui, 4: add, text, x10 y10 w300 cmaroon, Select Midi Ports. ; Text title
+;Gui, 4: Font, s8
+;Gui, 4: Add, Text, x10 y+10 w175 Center , Midi In Port ;Just text label
+;Gui, 4: font, s8
 ; midi ins list box
-Gui, 4: Add, ListBox, x10 w200 h100 Choose%TheChoice% vMidiInPort gDoneInChange AltSubmit, %MiList% ; --- midi in listing of ports
+;Gui, 4: Add, ListBox, x10 w200 h100 Choose%TheChoice% vMidiInPort gDoneInChange AltSubmit, %MiList% ; --- midi in listing of ports
 ;Gui, Add, DropDownList, x10 w200 h120 Choose%TheChoice% vMidiInPort gDoneInChange altsubmit, %MiList% ; ( you may prefer this style, may need tweak)
 
 ; --------------- MidiOutSet ---------------------
-Gui, 4: Add, TEXT, x220 y40 w175 Center, Midi Out Port ; gDoneOutChange
+;Gui, 4: Add, TEXT, x220 y40 w175 Center, Midi Out Port ; gDoneOutChange
 ; midi outlist box
-Gui, 4: Add, ListBox, x220 y62 w200 h100 Choose%TheChoice2% vMidiOutPort gDoneOutChange AltSubmit, %MoList% ; --- midi out listing
+;Gui, 4: Add, ListBox, x220 y62 w200 h100 Choose%TheChoice2% vMidiOutPort gDoneOutChange AltSubmit, %MoList% ; --- midi out listing
 ;Gui, Add, DropDownList, x220 y97 w200 h120 Choose%TheChoice2% vMidiOutPort gDoneOutChange altsubmit , %MoList%
-Gui, 4: add, Button, x10 w205 gSet_Done, Done - Reload script.
-Gui, 4: add, Button, xp+205 w205 gCancel, Cancel
+;Gui, 4: add, Button, x10 w205 gSet_Done, Done - Reload script.
+;Gui, 4: add, Button, xp+205 w205 gCancel, Cancel
 ;gui, 4: add, checkbox, x10 y+10 vNotShown gDontShow, Do Not Show at startup.
 ;IfEqual, NotShown, 1
 ;guicontrol, 4:, NotShown, 1
-Gui, 4: show , , %version% Midi Port Selection ; main window title and command to show it.
+;Gui, 4: show , , %version% Midi Port Selection ; main window title and command to show it.
 
 Return
 
@@ -514,8 +509,7 @@ VarSetCapacity(hMidiIn, 4, 0)
 result := DllCall("winmm.dll\midiInOpen", UInt,&hMidiIn, UInt,DeviceID, UInt,hWnd, UInt,0, UInt,CALLBACK_WINDOW, "UInt")
 If result
 {
-MsgBox, Error, midiInOpen Returned %result%`n
-;GoSub, sub_exit
+return
 }
 
 hMidiIn := NumGet(hMidiIn) ; because midiInOpen writes the value in 32 bit binary Number, AHK stores it as a string
@@ -523,7 +517,7 @@ result := DllCall("winmm.dll\midiInStart", UInt,hMidiIn)
 If result
 {
 MsgBox, Error, midiInStart Returned %result%`nRight Click on the Tray Icon - Left click on MidiSet to select valid midi_in port.
-;GoSub, sub_exit
+ExitApp
 }
 
 OpenCloseMidiAPI()
@@ -659,7 +653,8 @@ strh_midiout = 0000
 
 result := DllCall("winmm.dll\midiOutOpen", UInt,&strh_midiout, UInt,uDeviceID, UInt,0, UInt,0, UInt,0, UInt)
 If (result or ErrorLevel) {
-MsgBox There was an Error opening the midi port.`nError code %result%`nErrorLevel = %ErrorLevel%
+sleep 150
+tooltip, There was an Error opening the midi port.`nError code %result%`nErrorLevel = %ErrorLevel%
 Return -1
 }
 Return UInt@(&strh_midiout)
