@@ -1,22 +1,19 @@
-﻿#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn  ; Enable warnings to assist with detecting common errors.
-SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+﻿#NoEnv
 #SingleInstance force
-sleep 250
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
 FileRecycle, % media.sourceURL
-iniwrite, %media%, Deletions.ini, yep_gone
-sleep 50 
-;MsgBox, % controls.currentPosition . "`n"
- ;       . controls.currentPositionString
-;MsgBox, % media.getItemInfo("WM/AlbumTitle")
-
-; All attribute names you can get with media.getItemInfo(attributeName)
-Loop % media.attributeCount
-   attributes .= media.getAttributeName(A_Index - 1) . "`r`n"
-;MsgBox, % Clipboard := attributes
+tooltip, % media.sourceURL wmp.player.currentMedia
+iniwrite, % media, Deletions.ini, yep_gone
+ControlSend , ,^s, Windows Media Player 
+sleep 200
+ControlSend , ,^f, Windows Media Player 
+sleep 250
+wmp.jump(90)
+sleep 250
+ControlSend , ,^p, Windows Media Player 
+sleep 100
+return
 
 class RemoteWMP
 {
@@ -32,32 +29,6 @@ class RemoteWMP
       this.ocs := ComObjQuery(this.rms, IID_IOleClientSite)
       this.ole := ComObjQuery(this.player, IID_IOleObject)
       DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", this.ocs)
-   }
-   
-   __Delete()  {
-      if !this.player
-         Return
-      DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", 0)
-      for k, obj in [this.ole, this.ocs, this.rms]
-         ObjRelease(obj)
-      this.player := ""
-   }
-   
-   Jump(sec)  {
-      this.player.Controls.currentPosition += sec
-   }
-
-   TogglePause()  {
-      if (this.player.playState = 3)  ; Playing = 3
-         this.player.Controls.pause()
-      else
-         this.player.Controls.play()
-   }
-   
-   SetRate(value := 1.0)  {
-      VarSetCapacity(rate, 8, 0)
-      NumPut(value, rate, "Double")
-      this.player.settings.rate := ComObject(0x4005, &rate)
    }
 }
 
