@@ -1,22 +1,27 @@
-﻿#NoEnv
-#SingleInstance force
-SetKeyDelay , , 50, Play
-ifwinnotactive, Windows Media Player
- {
-wmp := new RemoteWMP
+﻿#SingleInstance force
+SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+;#NoTrayIcon
+;#persistent
+Menu, Tray, Icon, copy.ico
+wmp:= new RemoteWMP
 media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
+Path2File:=media.sourceURL
+path2paste=%1%
+if InvokeVerb(Path2File, "Cut")
+{ 
+    Process,Exist
+    hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
 }
-else
- {
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
+
+sleep 50
+;filemove, %path%, %1%
+if InvokeVerb(path2paste, "Paste")
+{ 
+    Process,Exist
+    hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
 }
+sleep 400
+run wmp_next.ahk
 return
 
 class RemoteWMP
@@ -25,10 +30,20 @@ class RemoteWMP
       static IID_IOleClientSite := "{00000118-0000-0000-C000-000000000046}"
            , IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
       Process, Exist, wmplayer.exe
-      if !ErrorLevel
-         throw Exception("wmplayer.exe is not running")
-      if !this.player := ComObjCreate("WMPlayer.OCX.7")
-         throw Exception("Failed to get WMPlayer.OCX.7 object")
+      if !ErrorLevel {
+         Tooltip, wmplayer.exe is not running %error%
+		Sleep 2220
+		ToolTip,
+		Sleep 100
+		Exit 
+		}
+      if !this.player := ComObjCreate("WMPlayer.OCX.7") {
+		Tooltip, Failed to get WMPlayer.OCX.7 object %Error%
+		Sleep 2220
+		ToolTip,
+		Sleep 100
+		Exit 
+		}
       this.rms := IWMPRemoteMediaServices_CreateInstance()
       this.ocs := ComObjQuery(this.rms, IID_IOleClientSite)
       this.ole := ComObjQuery(this.player, IID_IOleObject)
@@ -131,6 +146,8 @@ IUnknown_AddRef(this_)
    off := NumGet(this_+0, A_PtrSize, "UInt")
    iunk := this_-off
    NumPut((_refCount := NumGet(iunk+0, (A_PtrSize + 4)*4, "UInt") + 1), iunk+0, (A_PtrSize + 4)*4, "UInt")
+sleep, 50 
+sleep, 50 
    return _refCount
 }
 
@@ -166,3 +183,33 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 {
    return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
+
+
+InvokeVerb(path, menu, validate=True) {
+    objShell := ComObjCreate("Shell.Application")
+    if InStr(FileExist(path), "D") || InStr(path, "::{") {
+        objFolder := objShell.NameSpace(path)   
+        objFolderItem := objFolder.Self
+    } else {
+        SplitPath, path, name, dir
+        objFolder := objShell.NameSpace(dir)
+        objFolderItem := objFolder.ParseName(name)
+    }
+    if validate {
+        colVerbs := objFolderItem.Verbs   
+        loop % colVerbs.Count {
+            verb := colVerbs.Item(A_Index - 1)
+            retMenu := verb.name
+            StringReplace, retMenu, retMenu, &       
+            if (retMenu = menu) {
+                verb.DoIt
+                Return True
+            }
+        }
+		Return False
+    } else
+        objFolderItem.InvokeVerbEx(Menu)
+} 
+
+sleep 2000
+return

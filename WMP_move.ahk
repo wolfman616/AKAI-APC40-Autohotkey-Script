@@ -1,23 +1,63 @@
-﻿#NoEnv
-#SingleInstance force
-SetKeyDelay , , 50, Play
-ifwinnotactive, Windows Media Player
- {
+﻿#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+; #Warn  ; Enable warnings to assist with detecting common errors.
+SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
-}
-else
- {
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
-}
+
+
+
+
+
+
+this_path := Selected_Files()
+;tooltip, "%this_path%" 
 return
+tooltip, % media.sourceURL to this_path
+Move, % media.sourceURL, this_path
+
+Selected_Files()
+{
+  ; Handles Explorer
+  IfWinActive, ahk_class CabinetWClass
+  {
+    for window in ComObjCreate("Shell.Application").Windows
+      if window.HWND = WinExist("A")
+        this_window := window
+    
+    ; If multiple Items selected
+    if(this_window.Document.SelectedItems.Count > 1)
+    {
+      these_files := ""
+      for item in this_window.Document.SelectedItems
+        these_files .= item.Path . "`n"
+      
+      return these_files
+    }
+    else
+      return this_window.Document.FocusedItem.Path
+  }
+  
+  ; Handles Desktop
+  if(WinActive("ahk_class Progman") || WinActive("ahk_class WorkerW"))
+  {
+    ControlGet, selectedFiles, List, Selected Col1, SysListView321, A
+    
+    ; If multiple Items selected
+    if InStr(selectedFiles, "`n")
+    {
+      these_files := ""
+      Loop, Parse, selectedFiles, `n, `r
+        these_files .= A_Desktop . "\" . A_LoopField . "`n"
+    
+      return these_files
+    }
+    else
+      return A_Desktop . "\" . selectedFiles
+  }
+  else
+    return false
+}
 
 class RemoteWMP
 {
@@ -34,6 +74,7 @@ class RemoteWMP
       this.ole := ComObjQuery(this.player, IID_IOleObject)
       DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", this.ocs)
    }
+   
 }
 
 IWMPRemoteMediaServices_CreateInstance()
@@ -166,3 +207,10 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 {
    return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
+
+#Space::Send       {Media_Play_Pause}
+^!Left::Send        {Media_Prev}
+#Right::Send       {Media_Next}
+^!NumpadMult::Send  {Volume_Mute}
+^!NumpadAdd::Send   {Volume_Up}
+^!NumpadSub::Send   {Volume_Down}

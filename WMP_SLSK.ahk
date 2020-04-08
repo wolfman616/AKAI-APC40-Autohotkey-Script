@@ -1,24 +1,34 @@
-﻿#NoEnv
-#SingleInstance force
-SetKeyDelay , , 50, Play
-ifwinnotactive, Windows Media Player
- {
+﻿#NoEnv  
+SendMode Input 
+SetWorkingDir %A_ScriptDir% 
+#singleinstance force
+#notrayicon
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
+fullpath:= media.sourceurl
+IfWinNotExist, SoulSeek 
+{
+tooltip, giant throbbing bellend,,,1
+run slsk_rescue.ahk
+reload 
 }
-else
- {
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
-}
-return
 
+else
+{
+1st:= RegExReplace(fullpath, "^.+\\|\.[^.]+$")
+2nd := RegExReplace(1st, "[\-1234567890&@'~!£$%^&*]")
+MouseGetPos, orig_x, orig_y
+winactivate, SoulSeek
+mousemove, 145, 90,,
+send {LButton}
+send % 3rd := RegExReplace(2nd, "[/_()/]", " ")
+send {enter}
+mousemove, 1208, 230,,
+send {LButton}
+mousemove, orig_x, orig_y, ,
+exit
+;"/[\-_]/", " "
+}
 class RemoteWMP
 {
    __New()  {
@@ -34,6 +44,9 @@ class RemoteWMP
       this.ole := ComObjQuery(this.player, IID_IOleObject)
       DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", this.ocs)
    }
+   
+     
+ 
 }
 
 IWMPRemoteMediaServices_CreateInstance()
@@ -166,3 +179,10 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 {
    return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
+
+#Space::Send       {Media_Play_Pause}
+^!Left::Send        {Media_Prev}
+#Right::Send       {Media_Next}
+^!NumpadMult::Send  {Volume_Mute}
+^!NumpadAdd::Send   {Volume_Up}
+^!NumpadSub::Send   {Volume_Down}

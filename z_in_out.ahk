@@ -1,6 +1,7 @@
 ﻿SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+setbatchlines -1
 #SingleInstance force
-
+#Include VA.ahk
 Menu, Tray, Icon, C:\ICON\32\akaiapc_32.ico
 if A_OSVersion in WIN_NT4,WIN_95,WIN_98,WIN_ME ; if not xp or 2000 quit
 {
@@ -19,23 +20,57 @@ timeoutreload := 100
 cc_msg = 73,74 ; ++++++++++++++++ you might want to add other vars that load in auto execute section This example goes with
 channel = 1 ; default channel =1
 ccnum = 7 ; 7 is volume
+CFFVol = 10
+WMPVol = 10
+Master_Volume = 0
 volVal = 0 ; Default zero for volume
 volDelta = 10 ; Amount to change volume
 NoteVel := 127 ; Colour and Luminosity
 Sbyte := 144
 Mnote:= 0
 Bank:= 0 ; bank key un-lit /  Bind shift disabled
-xCh8:=7 
-xCh7:=6 
-xCh6:=5 
-xCh5:=4 
-xCh4:=3 
-xCh3:=2 
-xCh2:=1 
-xCh1:=0
+yFaderGroup =7
+yMaster =14
+XFader = 15
+FaderSByte =176
+xCh8 =7 
+xCh7 =6 
+xCh6 =5 
+xCh5 =4 
+xCh4 =3 
+xCh3 =2 
+xCh2 =1 
+xCh1=0
 xSByteFlashPause:=143
 xSByteFadePlay:=133
 xSByteONNormal:=144
+XfOffB2=0
+XfLEFTB2=1
+XfRIGHTB2=2
+XfCh8=151
+XfCh8Off=135
+XfCh7=150
+XfCh7Off=134
+XfCh6=149
+XfCh6Off=133
+XfCh5=148
+XfCh5Off=132
+XfCh4=147
+XfCh4Off=131
+XfCh3=146
+XfCh3Off=130
+XfCh2=145
+XfCh2Off=129
+XfCh1=144
+XfCh1Off=128
+YfCh8=183
+YfCh7=182
+YfCh6=181
+YfCh5=180
+YfCh4=179
+YfCh3=178
+YfCh2=177
+YfCh1=176
 B2PausedColor:=72
 B2UnPausedColor:=73
 BounceCol:=43
@@ -52,6 +87,7 @@ Controlgettext, MessageText, , MessageWin.ahk
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
 controls := wmp.player.controls
+
 ;IniDelete, wmp.ini, status, 
 ;run init.ahk
 
@@ -61,7 +97,7 @@ return ; DO NOT REMOVE
 MidiRules: ; Tip is: ++++++ for where you might want to add
 ; avoid these !!!!!!!!!!
 
-
+Byte2_100:=round(Byte2 / 1.23)
 
 if  (byte1=103) && (statusbyte=144)  ; APC BANK BUTTON LIT/  BANK MODEON
 {
@@ -74,96 +110,181 @@ if  (byte1=103) && (statusbyte=128) ;APC BANK BUTTON UNLIT/OFF
 Bank := 0 
 }
 
-if  (byte1=14) && (statusbyte=176) ;  APC MASTER FADER      ;183=FADER 8
+if  (byte1=yMaster) && (statusbyte=FaderSByte) ;  APC MASTER FADER   
 {
-Master_Volume := round(byte2 / 1.23)
+Master_Volume := round(Byte2 / 1.23)
 soundset,  Master_Volume    ;
 }
 
-if  (byte1=19) && (statusbyte=176) ;  APC MASTER FADER      ;183=FADER 8
+if  (byte1=yFaderGroup) && (statusbyte=182) ;  APC FADER 7   
 {
-SetDisplayBrightness(round(byte2 / 1.27))
+CFFVol:= round(Byte2 / 1.23)
+AppVolume("chrome.exe").setVolume(CFFVol)
+AppVolume("firefox.exe").setVolume(CFFVol)
 }
 
-if  (byte1=7) && (byte2=127) && (statusbyte=144)
+if  (byte1=yFaderGroup) && (statusbyte=YfCh8) ;  APC FADER 8   
+{
+WMPVol:= Byte2_100
+AppVolume("wmplayer.exe").setVolume(WMPVol)
+}
+
+if  (byte1=19) && (statusbyte=176) ;  APC  Tempo Knob
+{
+SetDisplayBrightness(round(Byte2 / 1.27))
+}
+
+if  (byte1=7) && (Byte2=127) && (statusbyte=144)
 {
 tooltip, INFO, Intro Skip 90 Secs, 20, 17
 introskip_ammount:=90
 }
-if  (byte1=94) && (byte2=127) && (statusbyte=144) ;  BANK SELECT RIGHT
+
+if  (byte1=94) && (Byte2=127) && (statusbyte=144) ;  BANK SELECT UP
 {
 run WMP_SLSK.ahk
 }
 
 if  (byte1=96) && (statusbyte=144) ;  BANK SELECT RIGHT
 {
-ControlSend , ,^s, Windows Media Player 
-sleep 350
-ControlSend , ,^f, Windows Media Player 
-sleep 350
-wmp.jump(90)
-sleep 350
-ControlSend , ,^p, Windows Media Player 
-sleep 150
+run WMP_NEXT.ahk
 }
 
 
-if  (byte1=97) && (statusbyte=144) ;  APC MASTER FADER      ;183=FADER 8
+if  (byte1=97) && (statusbyte=144) ;  BANK SELECT LEFT
 {
 ControlSend , ,^b, Windows Media Player 
 }
 
-if  (byte1=95) && (statusbyte=144) ;  APC MASTER FADER      ;183=FADER 8
+if  (byte1=95) && (statusbyte=144) ;  BANK SELECT DOWN
 {
 run wmp_cut.ahk ;cut mp3 to clipboard
 }
 
-if (statusbyte=151) && (byte2=127) && (Bank =0) 
+if (statusbyte=151) && (Byte2=127) && (Bank =0) 
 {
 ControlSend , ,^p, Windows Media Player
 run wmp_pstate.ahk 
-loop 3
-{
-Controlgettext, MessageText, , MessageWin.ahk
-sleep 150
-Controlgettext, MessageText, , MessageWin.ahk
-if MessageText=Paused
-{
-midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2PausedColor)
-midiOutShortMsg(h_midiout, xSByteFlashPause, xCh8, B2PausedColor)
-}
-else
-if MessageText=Playing 
-{
-midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2UnPausedColor)
-midiOutShortMsg(h_midiout, xSByteFadePlay, xCh8, B2UnPausedColor)
-}}}
-
-if (statusbyte=151) && (byte2=127) && (Bank =1) ; Bank mode enabled: "Chan 8" "stop button" to Delete currently playing file WMP
-{
-wmp := Delete RemoteWMP
-;media := wmp.player.currentMedia
-sleep, 200
-FileRecycle, % media.sourceURL
-sleep, 300
-iniwrite, % media.sourceURL, Deletions.ini, yep_gone
-sleep, 200
-ControlSend , ,^s, Windows Media Player 
-sleep, 350
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-sleep, 50
-ControlSend , ,^f, Windows Media Player ,
-sleep, 300
-wmp.jump(90)
-sleep, 350
-ControlSend , ,^p, Windows Media Player 
 sleep, 100
-;midiOutShortMsg(h_midiout, 128, 103, 0) 
-;Bank := 0 
+gosub, WMP_CHECK
 }
 
+if (statusbyte=151) && (Byte2=127) && (Bank =1) ; Bank mode enabled: "Chan 8" "stop button" to Delete currently playing file WMP
+{
+runwait wmp_del.ahk
+run WMP_NEXT.ahk
+}
 
+;XFADE STUFF
+
+if (statusbyte=XfCh8) && (Byte2=1)
+xfadeleft=ch8 
+
+if (statusbyte=XfCh7) && (Byte2=1)
+xfadeleft=ch7
+
+if (statusbyte=XfCh6) && (Byte2=1)
+xfadeleft=ch6 
+
+if (statusbyte=XfCh5) && (Byte2=1)
+xfadeleft=ch5 
+
+if (statusbyte=XfCh4) && (Byte2=1)
+xfadeleft=ch4 
+
+if (statusbyte=XfCh3) && (Byte2=1)
+xfadeleft=ch3 
+
+if (statusbyte=XfCh2) && (Byte2=1)
+xfadeleft=ch2
+
+if (statusbyte=XfCh1) && (Byte2=1)
+xfadeleft=ch1 
+
+if (statusbyte=XfCh8) && (Byte2=2)
+xfadeRight=ch8
+
+if (statusbyte=XfCh7) && (Byte2=2)
+xfadeRight=ch7
+
+if (statusbyte=XfCh6) && (Byte2=2)
+xfaderight=ch6 
+
+if (statusbyte=XfCh5) && (Byte2=2)
+xfaderight=ch5 
+
+if (statusbyte=XfCh4) && (Byte2=2)
+xfaderight=ch4 
+
+if (statusbyte=XfCh3) && (Byte2=2)
+xfaderight=ch3 
+
+if (statusbyte=XfCh2) && (Byte2=2)
+xfaderight=ch2
+
+if (statusbyte=XfCh1) && (Byte2=2)
+xfaderight=ch1 
+
+if (StatusByte=XfCh8Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh7Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh6Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh5Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh4Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh3Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh2Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+if (StatusByte=XfCh1Off) && (Byte2=0)
+TrayTip, X-FADER, Channel Unassigned
+
+;68 0 135                   0 135 CH8 XFADE OFF  1 151CH8XFADE A 2 151 CH8XFADEB
+
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xfadeleft=ch8)
+{
+WMPSumVol:=100 * (round(byte2_100 / WMPVol))
+AppVolume("wmplayer.exe").setVolume(WMPSumVol)
+}
+
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xfadeRight=ch8)
+{
+;WMPSumRatio:=round(byte2_100 / WMPVol)
+WMPSumVol:=100 - (100 * (round(byte2_100 / WMPVol)))
+AppVolume("wmplayer.exe").setVolume(WMPSumVol)
+}
+
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xfadeleft=ch7)
+{
+WMPSumVol:=100 * (round(byte2_100 / WMPVol))
+AppVolume("chrome.exe").setVolume(WMPSumVol)
+AppVolume("firefox.exe").setVolume(WMPSumVol)
+}
+
+if (byte1=15) && (statusbyte=FaderSByte) && (xfadeRight=ch7)
+{
+WMPSumVol:=100 - (100 * (round(byte2_100 / WMPVol)))
+AppVolume("firefox.exe").setVolume(WMPSumVol)
+AppVolume("chrome.exe").setVolume(WMPSumVol)
+}
+
+; END XFADE RIP
+
+
+if  (byte1=64) && (byte2=127) && (statusbyte=144)   ; CLIP DEV VIEW
+{
+GOTO TESTY
+}
 
 
 if  (byte1=48) && (statusbyte=176) ; BOUNCE DELAY CH 1 TOP KNOB 
@@ -173,12 +294,15 @@ bounceincdelay := round((byte2 * 1.83) +50) ; needs inverting
 
 if  (byte1=49) && (statusbyte=176) ; BOUNCE COLOUR CH 2 TOP KNOB 
 {
-BounceCol := byte2 ;127 scaled to miliseconds
+BounceCol := byte2 ;127 scaled to miliseconds 
 }
 ;ahk_pid 16612
 	 ; FFToolTip(Text:="", X:="", Y:="", WhichToolTip:=1)
 
+settimer, WMP_CHECK, 5000
 
+
+return
 ;#Space:: wmp.jump(90)
 
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! no edit below here ....
@@ -207,6 +331,41 @@ return
 
 SendNote: ;(h_midiout,Note) ; send out note messages ; this should probably be a funciton but... eh.
 note = %byte1% ; this var is added to allow transpostion of a note
+
+
+WMP_CHECK:
+{
+MESSAGEWIN_CALL:
+if winexist ("Windows Media Player")
+{
+run,wmp_pstate.ahk
+}
+ELSE
+{
+TOOLTIP, CUNT
+return
+}
+
+MESSAGEWIN_RESPONSE:
+{
+Controlgettext, MessageText, , MessageWin.ahk
+sleep 150
+Controlgettext, MessageText, , MessageWin.ahk
+if MessageText=Paused
+{
+midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2PausedColor)
+midiOutShortMsg(h_midiout, xSByteFlashPause, xCh8, B2PausedColor)
+return
+}
+else
+if MessageText=Playing 
+{
+midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2UnPausedColor)
+midiOutShortMsg(h_midiout, xSByteFadePlay, xCh8, B2UnPausedColor)
+return
+}}
+return
+}
 
 
 ;PUT STUFF HERE to run initally
@@ -246,6 +405,10 @@ midiOutShortMsg(h_midiout, Sbyte, mnote, 69)
 }
 
 #!t::
+
+GOTO TESTY
+
+TESTY:
 {
 
 DBGTT := !DBGTT
@@ -913,9 +1076,132 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 {
    return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
+
+AppVolume(app:="", device:="")
+{
+	return new AppVolume(app, device)
+}
+
+class AppVolume
+{
+	ISAVs := []
+	
+	__New(app:="", device:="")
+	{
+		static IID_IASM2 := "{77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F}"
+		, IID_IASC2 := "{BFB7FF88-7239-4FC9-8FA2-07C950BE9C6D}"
+		, IID_ISAV := "{87CE5498-68D6-44E5-9215-6DA47EF883D8}"
+		
+		; Activate the session manager of the given device
+		pIMMD := VA_GetDevice(device)
+		VA_IMMDevice_Activate(pIMMD, IID_IASM2, 0, 0, pIASM2)
+		ObjRelease(pIMMD)
+		
+		; Enumerate sessions for on this device
+		VA_IAudioSessionManager2_GetSessionEnumerator(pIASM2, pIASE)
+		ObjRelease(pIASM2)
+		
+		; Search for audio sessions with a matching process ID or Name
+		VA_IAudioSessionEnumerator_GetCount(pIASE, Count)
+		Loop, % Count
+		{
+			; Get this session's IAudioSessionControl2 via its IAudioSessionControl
+			VA_IAudioSessionEnumerator_GetSession(pIASE, A_Index-1, pIASC)
+			pIASC2 := ComObjQuery(pIASC, IID_IASC2)
+			ObjRelease(pIASC)
+			
+			; If its PID matches save its ISimpleAudioVolume pointer
+			VA_IAudioSessionControl2_GetProcessID(pIASC2, PID)
+			if (PID == app || this.GetProcessName(PID) == app)
+				this.ISAVs.Push(ComObjQuery(pIASC2, IID_ISAV))
+			
+			ObjRelease(pIASC2)
+		}
+		
+		; Release the IAudioSessionEnumerator
+		ObjRelease(pIASE)
+	}
+	
+	__Delete()
+	{
+		for k, pISAV in this.ISAVs
+			ObjRelease(pISAV)
+	}
+	
+	AdjustVolume(Amount)
+	{
+		return this.SetVolume(this.GetVolume() + Amount)
+	}
+	
+	GetVolume()
+	{
+		for k, pISAV in this.ISAVs
+		{
+			VA_ISimpleAudioVolume_GetMasterVolume(pISAV, fLevel)
+			return fLevel * 100
+		}
+	}
+	
+	SetVolume(level)
+	{
+		level := level>100 ? 100 : level<0 ? 0 : level ; Limit to range 0-100
+		for k, pISAV in this.ISAVs
+			VA_ISimpleAudioVolume_SetMasterVolume(pISAV, level / 100)
+		return level
+	}
+	
+	GetMute()
+	{
+		for k, pISAV in this.ISAVs
+		{
+			VA_ISimpleAudioVolume_GetMute(pISAV, bMute)
+			return bMute
+		}
+	}
+	
+	SetMute(bMute)
+	{
+		for k, pISAV in this.ISAVs
+			VA_ISimpleAudioVolume_SetMute(pISAV, bMute)
+		return bMute
+	}
+	
+	ToggleMute()
+	{
+		return this.SetMute(!this.GetMute())
+	}
+	
+	GetProcessName(PID) {
+		hProcess := DllCall("OpenProcess"
+		, "UInt", 0x1000 ; DWORD dwDesiredAccess (PROCESS_QUERY_LIMITED_INFORMATION)
+		, "UInt", False  ; BOOL  bInheritHandle
+		, "UInt", PID    ; DWORD dwProcessId
+		, "UPtr")
+		dwSize := VarSetCapacity(strExeName, 512 * A_IsUnicode, 0) // A_IsUnicode
+		DllCall("QueryFullProcessImageName"
+		, "UPtr", hProcess  ; HANDLE hProcess
+		, "UInt", 0         ; DWORD  dwFlags
+		, "Str", strExeName ; LPSTR  lpExeName
+		, "UInt*", dwSize   ; PDWORD lpdwSize
+		, "UInt")
+		DllCall("CloseHandle", "UPtr", hProcess, "UInt")
+		SplitPath, strExeName, strExeName
+		return strExeName
+	}
+}
+
+VA_ISimpleAudioVolume_SetMasterVolume(this, ByRef fLevel, GuidEventContext="") {
+	return DllCall(NumGet(NumGet(this+0)+3*A_PtrSize), "ptr", this, "float", fLevel, "ptr", VA_GUID(GuidEventContext))
+}
+VA_ISimpleAudioVolume_GetMasterVolume(this, ByRef fLevel) {
+	return DllCall(NumGet(NumGet(this+0)+4*A_PtrSize), "ptr", this, "float*", fLevel)
+}
+VA_ISimpleAudioVolume_SetMute(this, ByRef Muted, GuidEventContext="") {
+	return DllCall(NumGet(NumGet(this+0)+5*A_PtrSize), "ptr", this, "int", Muted, "ptr", VA_GUID(GuidEventContext))
+}
+VA_ISimpleAudioVolume_GetMute(this, ByRef Muted) {
+	return DllCall(NumGet(NumGet(this+0)+6*A_PtrSize), "ptr", this, "int*", Muted)
+}
 ;credits to Orbik and all the crew on AHK steroids
-
-
-
 
   

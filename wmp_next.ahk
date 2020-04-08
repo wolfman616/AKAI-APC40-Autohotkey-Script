@@ -1,23 +1,41 @@
-﻿#NoEnv
-#SingleInstance force
-SetKeyDelay , , 50, Play
+﻿#SingleInstance force
+SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+
+
+
 ifwinnotactive, Windows Media Player
- {
+{
+ControlSend, , ^s, Windows Media Player 
+sleep, 300
+ControlSend, , ^f, Windows Media Player 
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
+controls := wmp.player.controls
+sleep, 700
+wmp.jump(86)
+sleep, 100
+ControlSend, ,^p, Windows Media Player 
 tooltip,
-}
-else
- {
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-FileRecycle, % media.sourceURL
-iniwrite, % media, Deletions.ini, yep_gone
-tooltip,
-}
 return
+}
+
+ifwinactive, Windows Media Player
+{
+Send, ^s 
+sleep, 200
+Send, ^f
+wmp := new RemoteWMP
+media := wmp.player.currentMedia
+controls := wmp.player.controls
+sleep, 1300
+wmp.jump(86)
+sleep, 100
+Send ,^p 
+tooltip,
+return
+}
+
+exit
 
 class RemoteWMP
 {
@@ -34,6 +52,11 @@ class RemoteWMP
       this.ole := ComObjQuery(this.player, IID_IOleObject)
       DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", this.ocs)
    }
+
+ Jump(sec)  {
+      this.player.Controls.currentPosition += sec
+   }
+
 }
 
 IWMPRemoteMediaServices_CreateInstance()
@@ -166,3 +189,5 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 {
    return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
+
+

@@ -1,6 +1,6 @@
 ﻿#SingleInstance force
 ;#NoTrayIcon
-#persistent
+;#persistent
 Menu, Tray, Icon, copy.ico
 wmp:= new RemoteWMP
 media := wmp.player.currentMedia
