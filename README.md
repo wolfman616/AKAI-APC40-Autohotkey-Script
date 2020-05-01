@@ -22,3 +22,8 @@ skip tracks directly to specific offset when traversing playlist with D Pad
 Search For WMP Currently playng in Soulseek having stripped te
 
 Display brightness control
+
+Aeroglass opacity/blur/reflection control
+
+Color change for event, next track / stopped / playing / bounce effect
+ini file working to save settings
