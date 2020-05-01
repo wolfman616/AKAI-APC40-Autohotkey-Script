@@ -1,7 +1,10 @@
 ﻿SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 setbatchlines -1
+SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+#persistent
 #SingleInstance force
 #Include VA.ahk
+#inputlevel 1
 Menu, Tray, Icon, C:\ICON\32\akaiapc_32.ico
 if A_OSVersion in WIN_NT4,WIN_95,WIN_98,WIN_ME ; if not xp or 2000 quit
 {
@@ -9,30 +12,41 @@ MsgBox Error Win2k/XP or later minimum.
 ExitApp
 }
 
+
+
 readini() ; load previous midi settings
 gosub, MidiPortRefresh ; used to refresh the input and output port lists - see label below
 port_test(numports,numports2) ; test the ports - check for valid ports?
 gosub, midiin_go ; opens the midi input port listening routine
 gosub, midiout ; opens the midi out port
 
+SendLevel 99
+Send, #^r
+
 ; =============== set variables you use in MidiRules section
+nn=1
+
 timeoutreload := 100
 cc_msg = 73,74 ; ++++++++++++++++ you might want to add other vars that load in auto execute section This example goes with
 channel = 1 ; default channel =1
 ccnum = 7 ; 7 is volume
 CFFVol = 10
-WMPVol = 10
+WMPVol := 10
 Master_Volume = 0
 volVal = 0 ; Default zero for volume
 volDelta = 10 ; Amount to change volume
 NoteVel := 127 ; Colour and Luminosity
 Sbyte := 144
-Mnote:= 0
+Mnote= 0
 Bank:= 0 ; bank key un-lit /  Bind shift disabled
 yFaderGroup =7
+xFaderB1=66
 yMaster =14
 XFader = 15
 FaderSByte =176
+;176, 177, 178, 179, 180, 181, 182
+yfads:= [%YfCh1%, %YfCh2%, %YfCh3%, %YfCh4%, %YfCh5%, %YfCh6%, %YfCh7%, %YfCh8%]
+ch8lights:=[6, 14, 22, 40]
 xCh8 =7 
 xCh7 =6 
 xCh6 =5 
@@ -41,9 +55,9 @@ xCh4 =3
 xCh3 =2 
 xCh2 =1 
 xCh1=0
-xSByteFlashPause:=143
-xSByteFadePlay:=133
-xSByteONNormal:=144
+global Pstate_answer=42
+global Pstate_answer_old=69
+skipD = 86
 XfOffB2=0
 XfLEFTB2=1
 XfRIGHTB2=2
@@ -71,25 +85,63 @@ YfCh4=179
 YfCh3=178
 YfCh2=177
 YfCh1=176
-B2PausedColor:=72
-B2UnPausedColor:=73
-BounceCol:=43
+global xSByteFlashPause=143
+global xSByteFadePlay=133
+global xSByteONNormal=144
+global B2PausedColor=
+global B2UnPausedColor=
+global BounceCol=
+global bounceincdelay=
+iniread, B2PausedColor, z.ini, colours, pausedcolour, 69
+iniread, B2UnPausedColor, z.ini, colours, unpausecolour, 69
+iniread, BounceCol, z.ini, colours, bouncecol, 69
+iniread, bounceincdelay, z.ini, Bounce, bounceincdelay, 195
+
+
+
 Ascending:=1
 bouncefade:=131
-bounceincdelay:= 195
-bounceloc:=1
-bounceoffloc:=1
+; bounceincdelay:= 195
+bounceloc=1
+bounceoffloc=1
 bounceofflocreal:=bounceoffloc+ 31 ;32 -39 top row
-bounceendpause:=  300
-bouncing:=0
-run MessageWin.ahk
-Controlgettext, MessageText, , MessageWin.ahk
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-controls := wmp.player.controls
+bounceendpause= 300
+bouncing=1
+updatelights:=0
+Brightne55:= Format("100", int*)
+n :=1
+lights:= [] 
+twonk:=
+lights[1] := "xSByteFlashPause" 
+lights[2] := "xSByteFadePlay"
+lights[3] := "xSByteONNormal"
+lights[4] := "B2PausedColor"
+lights[5] := "B2UnPausedColor"
+;oldsong= placeholder
+AppVolume("firefox.exe").getmute()
+cffmute=1
 
-;IniDelete, wmp.ini, status, 
-;run init.ahk
+
+;AppVolume("firefox.exe").ToggleMute()
+ 
+;Array := {1: ValueA, KeyB: ValueB, ..., KeyZ: ValueZ}
+OnExit("Parp")
+
+
+Parp()
+{
+iniwrite, %BounceCol% , z.ini , Colours, bouncecol
+sleep 200
+iniwrite, %B2PausedColor%  , z.ini , Colours, pausedcolour
+sleep 200
+iniwrite, %B2UnPausedColor% , z.ini, Colours, unpausecolour
+sleep 200
+iniwrite, %bounceincdelay% , z.ini, Bounce, bounceincdelay
+sleep 200
+tooltip, byee
+sleep 200
+tooltip,
+}
 
 
 return ; DO NOT REMOVE
@@ -102,12 +154,16 @@ Byte2_100:=round(Byte2 / 1.23)
 if  (byte1=103) && (statusbyte=144)  ; APC BANK BUTTON LIT/  BANK MODEON
 {
 Bank := 1 
+;SplashImage , apc40mk2.png, M T , , , APC40MK2, Zekton
+Gui, Show,x 400 y 400 , SACK, 
 tooltip, 
 }
 
 if  (byte1=103) && (statusbyte=128) ;APC BANK BUTTON UNLIT/OFF
 {
 Bank := 0 
+Gui, Show, , SACK
+Gui, Hide
 }
 
 if  (byte1=yMaster) && (statusbyte=FaderSByte) ;  APC MASTER FADER   
@@ -129,31 +185,97 @@ WMPVol:= Byte2_100
 AppVolume("wmplayer.exe").setVolume(WMPVol)
 }
 
-if  (byte1=19) && (statusbyte=176) ;  APC  Tempo Knob
+if  (byte1=13) && (statusbyte=176) && (byte2= 1) && (editch8=1)  ;  APC  Tempo Knob
 {
-SetDisplayBrightness(round(Byte2 / 1.27))
+lightsvar:= % lights[n]
+tooltip, editing %lightsvar% use knob below :)
+n:=n+1
+return
 }
 
-if  (byte1=7) && (Byte2=127) && (statusbyte=144)
+if  (byte1=13) && (statusbyte=176) && (byte2= 127) && (editch8=1) ;  APC  Tempo Knob
 {
-tooltip, INFO, Intro Skip 90 Secs, 20, 17
-introskip_ammount:=90
+Brightne55 := Brightne55 - 10
+SetDisplayBrightness(%Brightne55%)
+tooltip brightness -1`n%Brightne55%
+}
+
+if  (byte1=xCh8) && (Byte2=127) && (statusbyte=144) && (Bank=1)
+{
+tooltip, Edit me
+editch8=1
+return
+}
+
+if  (byte1=xCh8) && (Byte2=127) && (statusbyte=144) && (Bank=1) && (editch8=1)
+{
+tooltip, % n
+return
+}
+
+if  (byte1=19) && (StatusByte=184) && (editch8=1)
+{
+%lightsvar% := %Byte2%
+tooltip %lightsvar% = %Byte2%
+gosub update_lights
+return
+}
+
+if (byte1=52) && (byte2=127) && (StatusByte=150) && (CFFMute=1)
+{
+AppVolume("firefox.exe").GetVolume()
+AppVolume("chrome.exe").ToggleMute()
+AppVolume("firefox.exe").ToggleMute()
+CFFMute:=2 
+AppVolume("firefox.exe").getmute()
+tooltip, %bmute% a %fLevel%
+gosub update_lights
+return
+}
+
+if (byte1=52) && (byte2=127) && (StatusByte=150) && (CFFMute=2)
+{
+AppVolume("chrome.exe").ToggleMute()
+AppVolume("firefox.exe").ToggleMute()
+CFFMute=1
+AppVolume("firefox.exe").getmute()
+tooltip, %bmute% b
+gosub update_lights
+return
+}
+
+if  (byte1=yMaster) && (statusbyte=FaderSByte) ;  APC MASTER FADER   
+{
+Master_Volume := round(Byte2 / 1.23)
+soundset,  Master_Volume    ;
 }
 
 if  (byte1=94) && (Byte2=127) && (statusbyte=144) ;  BANK SELECT UP
 {
-run WMP_SLSK.ahk
+Process, Exist, slsk2.exe
+     if !ErrorLevel
+		tooltip, error slsk not open
+	else
+		run WMP_SLSK.ahk
 }
+
+;if  (byte1=94) && (Byte2=127) && (statusbyte=144) && (Bankmode=1)
+
+
 
 if  (byte1=96) && (statusbyte=144) ;  BANK SELECT RIGHT
 {
-run WMP_NEXT.ahk
+Process, Exist, wmplayer.exe
+gosub WMP_NEXT
+return
 }
+
 
 
 if  (byte1=97) && (statusbyte=144) ;  BANK SELECT LEFT
 {
-ControlSend , ,^b, Windows Media Player 
+GoSub WMP_Prev
+Return
 }
 
 if  (byte1=95) && (statusbyte=144) ;  BANK SELECT DOWN
@@ -163,127 +285,234 @@ run wmp_cut.ahk ;cut mp3 to clipboard
 
 if (statusbyte=151) && (Byte2=127) && (Bank =0) 
 {
+Process, Exist, wmplayer.exe
+{
 ControlSend , ,^p, Windows Media Player
-run wmp_pstate.ahk 
 sleep, 100
 gosub, WMP_CHECK
+gosub update_lights
+}}
+
+if (statusbyte=151) && (Byte2=127) && (Bank =1) ; DELETE currently playing file WMP
+{
+gosub WMP_Del
 }
 
-if (statusbyte=151) && (Byte2=127) && (Bank =1) ; Bank mode enabled: "Chan 8" "stop button" to Delete currently playing file WMP
+
+if (updatelights=1)
 {
-runwait wmp_del.ahk
-run WMP_NEXT.ahk
+;tooltip 4546463636
+updatelights:=0
 }
+
+if (statusbyte=FaderSByte) && (Byte1=55)
+{
+Byte2_50:=round((Byte2 / 123)+1)
+wmp.SetRate(Byte2_50)
+}
+/* 
+if (byte1=16) && (StatusByte in %yfads%) && (bank=1) ; finder
+{
+tooltip %Mnote%
+Mnoteold=% mnote
+Mnote := byte2
+midiOutShortMsg(h_midiout, Sbyte, mnoteold, 0)
+settimer rainbow, 150
+return
+}
+ */
+bowcol=1
+
+
+
+if (byte1=16) && (StatusByte=184) && (bank=1) ; AEROGLASS TRANS
+{
+sendmessage, 0x0422, , %Byte2_100%, msctls_trackbar327, Aero Glass for Win8.x+
+return
+}
+
+if (byte1=17) && (StatusByte=184) && (bank=1) ; AEROGLASS REFLECTION
+{
+sendmessage, 0x0422, , %Byte2_100%, msctls_trackbar321, Aero Glass for Win8.x+
+return
+}
+
+if (byte1=18) && (StatusByte=184) && (bank=1) ; AEROGLASS REFLECTION
+{
+sendmessage, 0x0422, , %Byte2_100%, msctls_trackbar322, Aero Glass for Win8.x+
+return
+}
+
 
 ;XFADE STUFF
 
 if (statusbyte=XfCh8) && (Byte2=1)
-xfadeleft=ch8 
+{
+xFadeLeftOld:=xFadeLeft
+xFadeLeft=8 
+if xfaderight=8
+xFadeRight:=xFadeRightOld
+}
 
 if (statusbyte=XfCh7) && (Byte2=1)
-xfadeleft=ch7
+{
+xFadeLeftOld:=xFadeLeft
+xFadeLeft=7
+if xfaderight=7
+xFadeRight:=xFadeRightOld
+}
+
 
 if (statusbyte=XfCh6) && (Byte2=1)
-xfadeleft=ch6 
+{
+xFadeLeftOld:=xFadeLeft
+xFadeLeft=6
+if xfaderight=6
+xFadeRight:=xFadeRightOld
+}
+
 
 if (statusbyte=XfCh5) && (Byte2=1)
-xfadeleft=ch5 
+xfadeleft=5 
 
 if (statusbyte=XfCh4) && (Byte2=1)
-xfadeleft=ch4 
+xfadeleft=4 
 
 if (statusbyte=XfCh3) && (Byte2=1)
-xfadeleft=ch3 
+xfadeleft=3 
 
 if (statusbyte=XfCh2) && (Byte2=1)
-xfadeleft=ch2
+xfadeleft=2
 
 if (statusbyte=XfCh1) && (Byte2=1)
-xfadeleft=ch1 
+xfadeleft=1 
 
 if (statusbyte=XfCh8) && (Byte2=2)
-xfadeRight=ch8
+{
+xFadeRightOld:=xFadeRight
+xFadeRight=8 
+if xfadeLeft=8
+xFadeLeft:=xFadeLOld
+}
+
 
 if (statusbyte=XfCh7) && (Byte2=2)
-xfadeRight=ch7
+{
+xFadeRightOld:=xFadeRight
+xFadeRight=7
+if xfadeLeft=7
+xFadeLeft:=xFadeLOld
+}
 
 if (statusbyte=XfCh6) && (Byte2=2)
-xfaderight=ch6 
+{
+xFadeRightOld:=xFadeRight
+xFadeRight=6
+if xfadeLeft=6
+xFadeLeft:=xFadeLOld
+} 
 
 if (statusbyte=XfCh5) && (Byte2=2)
-xfaderight=ch5 
+if xfaderight !=0
+xfaderightold:=xfaderight
+if xfadeleft=5
+{
+xfaderight=5 
+xfadeleft:=xfadeLeftOld
+}
 
 if (statusbyte=XfCh4) && (Byte2=2)
-xfaderight=ch4 
+xfaderight=4 
 
 if (statusbyte=XfCh3) && (Byte2=2)
-xfaderight=ch3 
+xfaderight=3 
 
 if (statusbyte=XfCh2) && (Byte2=2)
-xfaderight=ch2
+xfaderight=2
 
 if (statusbyte=XfCh1) && (Byte2=2)
-xfaderight=ch1 
+xfaderight=1 
 
-if (StatusByte=XfCh8Off) && (Byte2=0)
+if (StatusByte=XfCh8Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh7Off) && (Byte2=0)
+if (StatusByte=XfCh7Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh6Off) && (Byte2=0)
+if (StatusByte=XfCh6Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh5Off) && (Byte2=0)
+if (StatusByte=XfCh5Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh4Off) && (Byte2=0)
+if (StatusByte=XfCh4Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh3Off) && (Byte2=0)
+if (StatusByte=XfCh3Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh2Off) && (Byte2=0)
+if (StatusByte=XfCh2Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
-if (StatusByte=XfCh1Off) && (Byte2=0)
+if (StatusByte=XfCh1Off) && (Byte2=0) && (Byte1=XfadeB1)
 TrayTip, X-FADER, Channel Unassigned
 
 ;68 0 135                   0 135 CH8 XFADE OFF  1 151CH8XFADE A 2 151 CH8XFADEB
 
-if (byte1=XFader) && (statusbyte=FaderSByte) && (xfadeleft=ch8)
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=8)
 {
-WMPSumVol:=100 * (round(byte2_100 / WMPVol))
-AppVolume("wmplayer.exe").setVolume(WMPSumVol)
+WMPSumval:=round((WMPVol * byte2_100) /100)
+AppVolume("wmplayer.exe").setVolume(WMPSumval)
 }
 
-if (byte1=XFader) && (statusbyte=FaderSByte) && (xfadeRight=ch8)
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeLeft=8)
 {
-;WMPSumRatio:=round(byte2_100 / WMPVol)
-WMPSumVol:=100 - (100 * (round(byte2_100 / WMPVol)))
-AppVolume("wmplayer.exe").setVolume(WMPSumVol)
+WMPSumval:= (WMPVol * (100 - byte2_100))/100
+AppVolume("wmplayer.exe").setVolume(WMPSumval)
 }
 
-if (byte1=XFader) && (statusbyte=FaderSByte) && (xfadeleft=ch7)
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=7)
 {
-WMPSumVol:=100 * (round(byte2_100 / WMPVol))
-AppVolume("chrome.exe").setVolume(WMPSumVol)
-AppVolume("firefox.exe").setVolume(WMPSumVol)
+CFFSumval:=round((CFFVol * byte2_100) /100)
+AppVolume("chrome.exe").setVolume(CFFSumval)
+AppVolume("firefox.exe").setVolume(CFFSumval)
 }
 
-if (byte1=15) && (statusbyte=FaderSByte) && (xfadeRight=ch7)
+if (byte1=15) && (statusbyte=FaderSByte) && (xFadeLeft=7)
 {
-WMPSumVol:=100 - (100 * (round(byte2_100 / WMPVol)))
-AppVolume("firefox.exe").setVolume(WMPSumVol)
-AppVolume("chrome.exe").setVolume(WMPSumVol)
+wmpcall=1
+CFFSumval:=100 - round((CFFVol * byte2_100) /100)
+AppVolume("firefox.exe").setVolume(CFFSumval)
+AppVolume("chrome.exe").setVolume(CFFSumval)
 }
+
+if (byte1=XFader) && (statusbyte=FaderSByte) && (! xFadeRight) && (! xFadeLeft)
+{
+WMP_Dur:=% media.getItemInfo("Duration")
+WMP_Cur:=% controls.currentPosition
+Duration:= round(WMP_Dur)
+Desired:=(((Duration * 0.85) * byte2_100 ) / 100)
+current:=round(WMP_Cur)
+resultant:=desired - current
+wmp.jump(resultant)
+;tooltip, Desired:%desired%`nCurrent:%current%`nsum %resultant%`nTotal :%Duration%,4000,2000
+}
+
+if (byte1=65) && (byte2=127) && (statusbyte=128) && (bank=1)
+{
+tooltip, test
+}
+
 
 ; END XFADE RIP
 
 
+
+
+
 if  (byte1=64) && (byte2=127) && (statusbyte=144)   ; CLIP DEV VIEW
 {
-GOTO TESTY
+GOTO SumTest
 }
 
 
@@ -299,11 +528,13 @@ BounceCol := byte2 ;127 scaled to miliseconds
 ;ahk_pid 16612
 	 ; FFToolTip(Text:="", X:="", Y:="", WhichToolTip:=1)
 
-settimer, WMP_CHECK, 5000
+
+settimer, WMP_CHECK, 3300
+
 
 
 return
-;#Space:: wmp.jump(90)
+;#Space:: wmp.jump(90)ight
 
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! no edit below here ....
 ; don't edit this part!
@@ -331,49 +562,160 @@ return
 
 SendNote: ;(h_midiout,Note) ; send out note messages ; this should probably be a funciton but... eh.
 note = %byte1% ; this var is added to allow transpostion of a note
-
-
-WMP_CHECK:
-{
-MESSAGEWIN_CALL:
-if winexist ("Windows Media Player")
-{
-run,wmp_pstate.ahk
-}
-ELSE
-{
-TOOLTIP, CUNT
 return
-}
 
-MESSAGEWIN_RESPONSE:
+update_lights:
 {
-Controlgettext, MessageText, , MessageWin.ahk
-sleep 150
-Controlgettext, MessageText, , MessageWin.ahk
-if MessageText=Paused
-{
-midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2PausedColor)
-midiOutShortMsg(h_midiout, xSByteFlashPause, xCh8, B2PausedColor)
-return
-}
-else
-if MessageText=Playing 
+if Pstate_answer=3
 {
 midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2UnPausedColor)
 midiOutShortMsg(h_midiout, xSByteFadePlay, xCh8, B2UnPausedColor)
+;tooltip, unpasued,100,100,4
 return
-}}
+}
+if (pstate_answer=2) or  (pstate_answer=1)
+{
+midiOutShortMsg(h_midiout, xSByteONNormal, xCh8, B2PausedColor)
+midiOutShortMsg(h_midiout, xSByteFlashPause, xCh8, B2PausedColor)
+;tooltip, paused,100 , 100,4
 return
 }
 
+if CFFMute=2  
+{
+midiOutShortMsg(h_midiout, xSByteONNormal, xCh7, B2UnPausedColor)
+midiOutShortMsg(h_midiout, xSByteFadePlay, xCh7, B2UnPausedColor)
+;tooltip, unpasued
+return
+}
+if CFFMute=1  
+{
+midiOutShortMsg(h_midiout, xSByteONNormal, xCh7, B2PausedColor)
+midiOutShortMsg(h_midiout, xSByteFlashPause, xCh7, B2PausedColor)
+;tooltip, paused
+return
+}
+}
+return
+
+WMP_CHECK:
+{
+
+wmp := new RemoteWMP
+wmp.pstate()
+try
+{
+controls := wmp.player.controls
+media := wmp.player.currentMedia
+asong := media.getItemInfo("Title")
+}
+Catch e
+{
+tooltip,% "Exception thrown!`n`nwhat: " e.what "`nfile: " e.file
+        . "`nline: " e.line "`nmessage: " e.message "`nextra: " e.extra
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+sleep 20,
+;tooltip, success checking after exception
+}
+return
+}
+
+ToolTip_Off: 	
+{
+ToolTip,
+settimer ToolTip_Off, off
+return
+}
+
+WMP_Prev:
+{
+ControlSend , ,^b, Windows Media Player 
+sleep 300
+wmp := new RemoteWMP
+media := wmp.player.currentMedia
+controls := wmp.player.controls
+return
+}
+
+WMP_Del: 
+{
+ Process, Exist, wmplayer.exe
+{
+wmp2del := new RemoteWMP
+media2del := wmp.player.currentMedia
+gosub wmp_next
+
+;iniwrite, % media2del, Deletions.ini, yep_gone
+;tooltip, test,,,6
+;wmp2del.delete
+try 
+File2Del= % media2del.sourceURL
+catch
+gosub WMP_Del
+FileRecycle, % File2Del
+;F2dName := RegExReplace(File2Del, "^.+\\|\.[^.]+$")
+tooltip, Deleted
+settimer ToolTip_Off, 5000 
+return
+}}
 
 ;PUT STUFF HERE to run initally
+
+
+
+
+
+#^r::
+bounceloc=1
+bounceoffloc=1
+bouncelocreal:=bounceloc + 31
+bounceofflocreal=% bouncelocreal
+Loop
+	{
+	Loop 7
+		{ 
+		bouncelocreal:=bounceloc + 31
+		bounceofflocreal:=bounceoffloc + 31
+		midiOutShortMsg(h_midiout, xSByteONNormal, bouncelocreal, BounceCol)
+		sleep bounceincdelay
+		bounceloc := bounceloc + 1
+		bounceoffloc = % bounceloc
+		midiOutShortMsg(h_midiout, bouncefade, bounceofflocreal, BounceCol)
+		}
+	Loop 7
+		{ 
+		bouncelocreal:=bounceloc + 31
+		bounceofflocreal:=bounceoffloc + 31
+		midiOutShortMsg(h_midiout, xSByteONNormal, bouncelocreal, BounceCol)
+		sleep, bounceincdelay
+		bounceloc := bounceloc - 1
+		bounceoffloc = % bounceloc
+		midiOutShortMsg(h_midiout, bouncefade, bounceofflocreal, BounceCol)
+		}
+	}
+
+
+#t::
+{
+NoteVel := NoteVel - 1
+midiOutShortMsg(h_midiout, Sbyte, Mnote, NoteVel)
+return
+ }
+
 
 #y::
 {
 NoteVel := NoteVel + 1
 midiOutShortMsg(h_midiout, Sbyte, mnote, NoteVel)
+return
 }
 
 
@@ -381,6 +723,7 @@ midiOutShortMsg(h_midiout, Sbyte, mnote, NoteVel)
 {
 Sbyte := Sbyte - 1
 midiOutShortMsg(h_midiout, Sbyte, mnote, 69)
+return
  }
  
 
@@ -388,47 +731,96 @@ midiOutShortMsg(h_midiout, Sbyte, mnote, 69)
 {
 Sbyte := Sbyte + 1
 midiOutShortMsg(h_midiout, Sbyte, mnote, 69)
+return
 }
+
 
 
 #n::
 {
 Mnote := Mnote - 1
 midiOutShortMsg(h_midiout, Mnote, mnote, 69)
+return
  }
  
 
-#m::
+#m:: ;finder
 {
+;tooltip test
 Mnote := Mnote + 1
 midiOutShortMsg(h_midiout, Sbyte, mnote, 69)
+return
 }
 
+
+
 #!t::
-
-GOTO TESTY
-
-TESTY:
 {
-
 DBGTT := !DBGTT
 if DBGTT
+settimer, SumTest, 750
+return
+}
+
+old2new:
 {
-loop
+asongold=% asong
+return
+}
+
+Song_Compare:
 {
-testa=%byte2%
+if (asong=asongold)
+{
+;tooltip, nochange song,-100,-100,2
+}
+if (asong!=asongold)
+{
+gosub old2new
+Pstate_answer_old=% Pstate_answer
+;tooltip, upd8s0ng,-100,-100,2
+updatelights=1
+gosub update_lights
+}
+
+if (pstate_answer=pstate_answer_old)
+{
+;tooltip, nochange pstate,400,300,5
+}
+
+if (pstate_answer!=pstate_answer_old)
+{
+gosub old2new
+Pstate_answer_old=% Pstate_answer
+;tooltip, change pstate,400,300,5
+updatelights=1
+gosub update_lights
+	return
+	}
+return
+}
+
+
+SumTest:
+{
+testa=%byte2% + %byte1% + %statusbyte%
 sleep 300
-ifnotequal, testa, %byte2%
+ifnotequal, testa, (%byte2% + %byte1% + %statusbyte%)
  {
-ToolTip, byte1 = %byte1% `nbyte2 = %byte2% `nstatusbyte = %statusbyte% %wMsg% `nBank = %Bank% `nMaster volume %master_volume% , 4000, 2000, 1
+Menu, Tray, Icon, akaiapc_322.ico
+ToolTip, byte1 = %byte1% `nbyte2 = %byte2% `nstatusbyte = %statusbyte% %wMsg% `nBank = %Bank% `nMaster volume %master_volume%`n%Pstate_answer% new`nold %Pstate_answer_old%
+ , 4000, 2000, 8
 sleep 50
-testa:=%byte2%
-}}}
+testa:=(%byte2% + %byte1% + %statusbyte%)
+}
 Else
 {
+Menu, Tray, Icon, akaiapc_32.ico
 ToolTip,
 Return,
-}}
+}
+}
+
 
 ;iniRead, playstateini, wmp.ini, status
 ;midiOutShortMsg(h_midiout, statusbyte, note, byte2) ; call the midi funcitons with these params.
@@ -492,8 +884,8 @@ global MidiInDevice, MidiOutDevice, version
 
 IfNotExist, %version%io.ini ; if no ini
 FileAppend,, %version%io.ini ; make one with the following entries.
-IniWrite, %MidiInDevice%, %version%io.ini, Settings, MidiInDevice
-IniWrite, %MidiOutDevice%, %version%io.ini, Settings, MidiOutDevice
+;IniWrite, %MidiInDevice%, %version%io.ini, Settings, MidiInDevice
+;IniWrite, %MidiOutDevice%, %version%io.ini, Settings, MidiOutDevice
 }
 
 ;------------ port testing to make sure selected midi port is valid --------------------------------
@@ -513,7 +905,7 @@ MidiInerr = Midi In Port EMPTY. ; set this var = error message
 ;MsgBox, 0, , midi in port EMPTY
 If (midiInDevice > %numports%) ; if greater than the number of ports on the system.
 MidiInnerr = Midi In Port Invalid. ; set this error message
-;MsgBox, 0, , midi in port out of range
+Traytip, MIDI-IN Error, midi out port out of range, ,32
 }
 Else
 {
@@ -528,7 +920,7 @@ MidiOutErr = Midi Out Port EMPTY. ; set this error message
 ;MsgBox, 0, , midi o port EMPTY
 If (midiOutDevice > %numports2%) ; if greater than number of availble ports
 MidiOutErr = Midi Out Port Out Invalid. ; set this error message
-;MsgBox, 0, , midi out port out of range
+Traytip, MIDI-OUT Error, midi out port out of range, ,32
 }
 Else
 {
@@ -545,7 +937,6 @@ ExitApp
 Else
 {
 midiok = 1
-run wmp_pstate.ahk
 Return ; DO NOTHING - PERHAPS DO THE NOT TEST INSTEAD ABOVE.
 }
 }
@@ -659,7 +1050,7 @@ OnMessage(0x3C3, "MidiMsgDetect")
 OnMessage(0x3C4, "MidiMsgDetect")
 OnMessage(0x3C5, "MidiMsgDetect")
 OnMessage(0x3C6, "MidiMsgDetect")
-
+Menu, Tray, Icon, akaiapc_32.ico
 Return
 
 ;--- MIDI INS LIST FUNCTIONS - port handling -----
@@ -776,8 +1167,9 @@ strh_midiout = 0000
 result := DllCall("winmm.dll\midiOutOpen", UInt,&strh_midiout, UInt,uDeviceID, UInt,0, UInt,0, UInt,0, UInt)
 If (result or ErrorLevel) {
 ;run error_tooltip.ahk
-ToolTip, MIDI ISsue
-gosub, MidiPortRefresh
+Traytip, MIDI ERROR, UNABLE TO OPEN OUTPORT, 32
+sleep 2000
+gosub, midiout
 ;tooltip, There was an Error opening the midi port.`nError code %result%`nErrorLevel = %ErrorLevel%
 Return -1
 }
@@ -809,6 +1201,7 @@ Param1 := Param1 & 0x00FF ; strip MSB
 }
 */
 result := DllCall("winmm.dll\midiOutShortMsg", UInt,h_midiout, UInt, MidiStatus|(Param1<<8)|(Param2<<16), UInt)
+Menu, Tray, Icon, akaiapc_322.ico
 If (result or ErrorLevel) {
 ;MsgBox There was an Error Sending the midi event: (%result%`, %ErrorLevel%) ; pass back to reload script as this was occuring intermittently.
 midiOutClose(h_midiout)
@@ -880,27 +1273,11 @@ PokeInt(p_value, p_address) { ; Windows 2000 and later
 DllCall("ntdll\RtlFillMemoryUlong", UInt,p_address, UInt,4, UInt,p_value)
 }
 
-;Dsiplay Brightness 
 
-SetDisplayBrightness(Brightness) {
-   Static Minimum := "", Current := "", Maximum := ""
-   HMON := DllCall("User32.dll\MonitorFromWindow", "Ptr", 0, "UInt", 0x02, "UPtr")
-   DllCall("Dxva2.dll\GetNumberOfPhysicalMonitorsFromHMONITOR", "Ptr", HMON, "UIntP", PhysMons, "UInt")
-   VarSetCapacity(PHYS_MONITORS, (A_PtrSize + 256) * PhysMons, 0) ; PHYSICAL_MONITORS
-   DllCall("Dxva2.dll\GetPhysicalMonitorsFromHMONITOR", "Ptr", HMON, "UInt", PhysMons, "Ptr", &PHYS_MONITORS, "UInt")
-   HPMON := NumGet(PHYS_MONITORS, 0, "UPtr")
-   DllCall("Dxva2.dll\GetMonitorBrightness", "Ptr", HPMON, "UIntP", Minimum, "UIntP", Current, "UIntP", Maximum, "UInt")
-   If Brightness Is Not Integer
-      Brightness := Current
-   If (Brightness < Minimum)
-      Brightness := Minimum
-   If (Brightness > Maximum)
-      Brightness := Maximum
-   DllCall("Dxva2.dll\SetMonitorBrightness", "Ptr", HPMON, "UInt", Brightness, "UInt")
-   DllCall("Dxva2.dll\DestroyPhysicalMonitors", "UInt", PhysMons, "Ptr", &PHYS_MONITORS, "UInt")
-   Return Brightness
- }
+
 ;=remote WMP stuff
+
+
 class RemoteWMP
 {
    __New()  {
@@ -908,9 +1285,11 @@ class RemoteWMP
            , IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
       Process, Exist, wmplayer.exe
       if !ErrorLevel
-         throw Exception("wmplayer.exe is not running")
+return
+         ;throw Exception("wmplayer.exe is not running")
       if !this.player := ComObjCreate("WMPlayer.OCX.7")
-         throw Exception("Failed to get WMPlayer.OCX.7 object")
+return
+         ;throw Exception("Failed to get WMPlayer.OCX.7 object")
       this.rms := IWMPRemoteMediaServices_CreateInstance()
       this.ocs := ComObjQuery(this.rms, IID_IOleClientSite)
       this.ole := ComObjQuery(this.player, IID_IOleObject)
@@ -930,8 +1309,57 @@ class RemoteWMP
       this.player.Controls.currentPosition += sec
    }
    
+	Pstate()  {
+	if Pstate_answer=42 ; a token declaring as a num for init
+		{
+		gosub old2new  ;tooltip, INIT 
+		Pstate_answer = % this.player.playState
+		Pstate_answer_old = % this.player.playState
+		gosub update_lights
+		return
+		}
+	else
+		{
+try
+{
+		Pstate_answer :=  this.player.playState
+}
+Catch
+{
+sleep 250
+try
+{
+		Pstate_answer :=  this.player.playState
+}
+Catch
+{
+sleep 250
+try
+{
+		Pstate_answer :=  this.player.playState
+}
+Catch
+{
+sleep 250
+try
+{
+		Pstate_answer :=  this.player.playState
+}
+Catch
+{
+sleep 250
+try
+{
+		Pstate_answer :=  this.player.playState
 
 
+
+}}}}}
+;sleep 1000
+		gosub Song_Compare
+		return
+	}}
+	
    TogglePause()  {
       if (this.player.playState = 3)  ; Playing = 3
          this.player.Controls.pause()
@@ -939,11 +1367,6 @@ class RemoteWMP
          this.player.Controls.play()
    }
    
-   SetRate(value := 1.0)  {
-      VarSetCapacity(rate, 8, 0)
-      NumPut(value, rate, "Double")
-      this.player.settings.rate := ComObject(0x4005, &rate)
-   }
 }
 
 IWMPRemoteMediaServices_CreateInstance()
@@ -1077,6 +1500,99 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
    return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
 
+WMP_NEXT:
+{
+Process, Exist, wmplayer.exe
+{
+ifwinnotexist, Windows Media Player
+{
+TrayTip, Windows Media Player, Process found but window Not,,2
+Return
+}
+Else
+ifwinnotactive, Windows Media Player
+{
+ControlSend, , ^s, Windows Media Player 
+;oldsong= % media.sourceURL
+
+sleep, 350
+ControlSend, , ^f, Windows Media Player 
+sleep 100
+thecall1:
+gosub thetry
+if newsong =% oldsong
+{
+;tooltip, newsong = oldsong
+sleep 200
+gosub thecall1
+}
+else
+{
+wmp.jump(skipD)
+sleep 200
+ControlSend, ,^p, Windows Media Player,
+gosub update_lights
+;TOOLTIP, congrats you changed to the next tune you bell
+RETURN
+}
+return
+}
+
+ifwinactive, Windows Media Player
+{
+Send,^s
+;oldsong= % media.sourceURL
+sleep, 350
+Send, ^f
+sleep 200
+thecall2:
+gosub thetry
+sleep 200
+if newsong =% oldsong
+{
+;tooltip, newsong = oldsong
+sleep 200
+gosub thecall2
+}
+else
+{
+wmp.jump(skipD)
+sleep 300
+Send,^p
+gosub update_lights
+sleep 100
+TOOLTIP, 
+RETURN
+}}
+return
+} 
+return 
+}
+
+WMP_Refresh: 
+{
+wmp := new RemoteWMP
+media := wmp.player.currentMedia
+controls := wmp.player.controls
+return
+}
+
+THETRY:
+{
+sleep, 200
+gosub WMP_refresh
+sleep 200
+newsong= % media.sourceURL
+sleep 200
+return
+}
+return
+
+;END WMP
+
+
+;APP VOL
+
 AppVolume(app:="", device:="")
 {
 	return new AppVolume(app, device)
@@ -1202,6 +1718,49 @@ VA_ISimpleAudioVolume_SetMute(this, ByRef Muted, GuidEventContext="") {
 VA_ISimpleAudioVolume_GetMute(this, ByRef Muted) {
 	return DllCall(NumGet(NumGet(this+0)+6*A_PtrSize), "ptr", this, "int*", Muted)
 }
+
+;Dsiplay Brightness 
+
+SetDisplayBrightness(Brightness) {
+   Static Minimum := "0", Current := "", Maximum := "5000"
+   HMON := DllCall("User32.dll\MonitorFromWindow", "Ptr", 0, "UInt", 0x02, "UPtr")
+   DllCall("Dxva2.dll\GetNumberOfPhysicalMonitorsFromHMONITOR", "Ptr", HMON, "UIntP", PhysMons, "UInt")
+   VarSetCapacity(PHYS_MONITORS, (A_PtrSize + 256) * PhysMons, 0) ; PHYSICAL_MONITORS
+   DllCall("Dxva2.dll\GetPhysicalMonitorsFromHMONITOR", "Ptr", HMON, "UInt", PhysMons, "Ptr", &PHYS_MONITORS, "UInt")
+   HPMON := NumGet(PHYS_MONITORS, 0, "UPtr")
+   DllCall("Dxva2.dll\GetMonitorBrightness", "Ptr", HPMON, "UIntP", Minimum, "UIntP", Current, "UIntP", Maximum, "UInt")
+   If Brightness Is Not Integer
+      Brightness := Current
+   If (Brightness < Minimum)
+      Brightness := Minimum
+   If (Brightness > Maximum)
+      Brightness := Maximum
+   DllCall("Dxva2.dll\SetMonitorBrightness", "Ptr", HPMON, "UInt", Brightness, "UInt")
+   DllCall("Dxva2.dll\DestroyPhysicalMonitors", "UInt", PhysMons, "Ptr", &PHYS_MONITORS, "UInt")
+   Return Brightness
+ }
+return
+
+
+rainbow:
+{
+loop
+{
+loop 128
+{
+midiOutShortMsg(h_midiout, Sbyte, mnote, bowcol)
+bowcol:=bowcol+1
+}}
+loop 128
+{
+midiOutShortMsg(h_midiout, Sbyte, mnote, bowcol)
+bowcol:=bowcol-1
+}
+return
+}
+
+
+
 ;credits to Orbik and all the crew on AHK steroids
 
   
