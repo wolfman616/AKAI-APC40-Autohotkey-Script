@@ -17,9 +17,10 @@ Assign any applications Volume to X Fader A or B
 
 Playing WMP Indicator and Paused / stopped flashing LED 
 
-skip tracks directly to specific offset when traversing playlist with D Pad
+WMP transport assigned to Xfader by default when no Xfader mappings exist (very handy)
+skip tracks directly to specific offset when traversing playlist with D Pad (SkipD)
 
-Search For WMP Currently playng in Soulseek having stripped te
+AutoSearch For WMP Currently playng in Soulseek and clipboard
 
 Display brightness control
 
