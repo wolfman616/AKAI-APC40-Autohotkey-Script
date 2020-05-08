@@ -88,10 +88,10 @@ YfCh1=176
 global xSByteFlashPause=143
 global xSByteFadePlay=133
 global xSByteONNormal=144
-global B2PausedColor=
-global B2UnPausedColor=
-global BounceCol=
-global bounceincdelay=
+global B2PausedColor
+global B2UnPausedColor
+global BounceCol
+global bounceincdelay
 iniread, B2PausedColor, z.ini, colours, pausedcolour, 69
 iniread, B2UnPausedColor, z.ini, colours, unpausecolour, 69
 iniread, BounceCol, z.ini, colours, bouncecol, 69
@@ -154,8 +154,10 @@ Byte2_100:=round(Byte2 / 1.23)
 if  (byte1=103) && (statusbyte=144)  ; APC BANK BUTTON LIT/  BANK MODEON
 {
 Bank := 1 
-;SplashImage , apc40mk2.png, M T , , , APC40MK2, Zekton
-Gui, Show,x 400 y 400 , SACK, 
+
+Gui, Add, Picture, w784 h467 BackgroundTrans, apc40mk2.png
+;gui, add, picture, apc40mk2.png,
+Gui, Show,x400 y400 w790 h475, MIDI IN / OUT, 
 tooltip, 
 }
 

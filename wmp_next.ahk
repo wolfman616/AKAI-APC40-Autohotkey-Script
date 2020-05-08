@@ -1,41 +1,48 @@
 ﻿#SingleInstance force
+SETBATCHLINES -1
+;critical
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
-
-
-
-ifwinnotactive, Windows Media Player
-{
-ControlSend, , ^s, Windows Media Player 
-sleep, 300
-ControlSend, , ^f, Windows Media Player 
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-controls := wmp.player.controls
-sleep, 700
-wmp.jump(86)
-sleep, 100
-ControlSend, ,^p, Windows Media Player 
-tooltip,
+;Menu, Tray, Icon, C:\ICON\32\akaiapc_32.ico
+;#notrayicon ;this ruins everything
+;#persistent
+skipD=86
+Stop=18809
+Play=0x2e0000
+Pause=32808
+Prev=18810
+Next=18811
+Vol_Up=32815
+Vol_Down=32816
+WinTitle=Windows Media Player
+Process, Exist, wmplayer.exe
+ifwinnotexist, Windows Media Player
+	{
+	TrayTip, Windows Media Player, Process found but window Not,3000,2
+	Return
+	}
+Else
+	{
+	PostMessage, 0x111, Stop, 0, ,%WinTitle%
+	sleep, 50
+	PostMessage, 0x111, Next, 0, ,%WinTitle%
+	sleep 50
+	thecall1:
+	gosub thetry
+	if newsong =% oldsong
+		{
+		;tooltip, newsong = oldsong
+		sleep 100
+		gosub thecall1
+		}
+	else
+		{
+		wmp.jump(skipD)
+		sleep 100
+		PostMessage, 0x319, 0, Play, ,%WinTitle%
+		;TOOLTIP, congrats you changed to the next tune you bell
+		}
+	}
 return
-}
-
-ifwinactive, Windows Media Player
-{
-Send, ^s 
-sleep, 200
-Send, ^f
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-controls := wmp.player.controls
-sleep, 1300
-wmp.jump(86)
-sleep, 100
-Send ,^p 
-tooltip,
-return
-}
-
-exit
 
 class RemoteWMP
 {
@@ -44,9 +51,17 @@ class RemoteWMP
            , IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
       Process, Exist, wmplayer.exe
       if !ErrorLevel
-         throw Exception("wmplayer.exe is not running")
+		{
+		tooltip, wmplayer.exe is not running
+		settimer ToolTip_Off, -4000
+		exit
+		}
       if !this.player := ComObjCreate("WMPlayer.OCX.7")
-         throw Exception("Failed to get WMPlayer.OCX.7 object")
+		{
+        Tooltip, Failed to get WMPlayer.OCX.7 object
+		settimer ToolTip_Off, -4000
+		exit
+		}
       this.rms := IWMPRemoteMediaServices_CreateInstance()
       this.ocs := ComObjQuery(this.rms, IID_IOleClientSite)
       this.ole := ComObjQuery(this.player, IID_IOleObject)
@@ -191,3 +206,33 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 }
 
 
+ToolTip_Off:
+{	
+ToolTip,
+settimer ToolTip_Off, off
+return
+}
+
+WMP_Refresh: 
+{
+wmp := new RemoteWMP
+media := wmp.player.currentMedia
+controls := wmp.player.controls
+return
+}
+
+THETRY:
+{
+sleep, 200
+gosub WMP_refresh
+sleep 200
+newsong= % media.sourceURL
+sleep 200
+return
+}
+return
+
+trycatch:
+tooltip, try
+;Until errorlevel=0
+return

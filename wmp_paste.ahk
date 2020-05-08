@@ -3,8 +3,18 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 ;#NoTrayIcon
 ;#persistent
 Menu, Tray, Icon, copy.ico
+Stop=18809
+Play=0x2e0000
+Pause=32808
+Prev=18810
+Next=18811
+Vol_Up=32815
+Vol_Down=32816
+WinTitle=Windows Media Player
 wmp:= new RemoteWMP
+sleep, 150
 media := wmp.player.currentMedia
+sleep, 50
 Path2File:=media.sourceURL
 path2paste=%1%
 if InvokeVerb(Path2File, "Cut")
@@ -13,16 +23,24 @@ if InvokeVerb(Path2File, "Cut")
     hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
 }
 
+tooltip, Releasing File, 4000, 3000
+sleep 250
+F2mName := RegExReplace(Path2File, "^.+\\|\.[^.]+$")
+runwait wmp_next.ahk
+
 sleep 50
 ;filemove, %path%, %1%
 if InvokeVerb(path2paste, "Paste")
-{ 
+{ 	
+	tooltip, moved %F2mName% to %1%, 4000, 3000
+	settimer, tooloff, 4000
     Process,Exist
     hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
 }
-sleep 400
-run wmp_next.ahk
-return
+	;Traytip, Windows Media Player, Moved prev to %1%, 3, 1
+	settimer, tooloff, -100
+	return
+
 
 class RemoteWMP
 {
@@ -32,16 +50,12 @@ class RemoteWMP
       Process, Exist, wmplayer.exe
       if !ErrorLevel {
          Tooltip, wmplayer.exe is not running %error%
-		Sleep 2220
-		ToolTip,
-		Sleep 100
+		SetTimer ToolOff, -4000
 		Exit 
 		}
       if !this.player := ComObjCreate("WMPlayer.OCX.7") {
 		Tooltip, Failed to get WMPlayer.OCX.7 object %Error%
-		Sleep 2220
-		ToolTip,
-		Sleep 100
+		SetTimer ToolOff, -4000
 		Exit 
 		}
       this.rms := IWMPRemoteMediaServices_CreateInstance()
@@ -210,6 +224,12 @@ InvokeVerb(path, menu, validate=True) {
     } else
         objFolderItem.InvokeVerbEx(Menu)
 } 
-
-sleep 2000
 return
+; settimer, tooloff, -2000
+; return
+
+tooloff:
+{
+tooltip,
+return
+}
