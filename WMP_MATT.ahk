@@ -1,8 +1,4 @@
-﻿#NoEnv
-; #Warn
-sendMode Input
-SetWorkingDir %A_ScriptDir%
-#NoEnv 		
+﻿#NoEnv 		
 #Persistent 		
 #singleinstance force
 #Include VA.ahk
@@ -14,14 +10,24 @@ Menu, Tray, Icon, WMP.ico
 Menu, Tray, noStandard
 Menu, Tray, Add, Open script folder, Open_script_folder,
 Menu, Tray, Standard
-;VARs::::::::::::;
+
+global G3nre
 global S := 1200 ;; Sleep Time (ms)
-global Genres:="i)(dnb)|(reggae)|(riddim)|(hiphop)|(garage)|(rock)|(ambient)|(samples)|(my music)|(audiobooks)|(sLSk)|(FOAD)", global Needle4:="i)[1234567890.'`)}{(_]|(-khz)(rmx)|(remix)|(mix)|(refix)|(vip)|(featuring)|( feat)|(ft)|(rfl)|(-boss)(-sour)|(its)|(it's)|(-)|(-bpm)|(edit)", global Needle2:="i)(\s[a-z]{1,2}\s)", global Needle3:="( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]", Con_Cat_N_8:="c:\out\temp.txt", global StartPos_Offset:=0, global StartPos_Offset := 4, global Search_Root:="", global Genre:="", global newsong:="", global G3nre:=""
+global newsong
+Global Genres:="i)(dnb)|(reggae)|(riddim)|(hiphop)|(garage)|(rock)|(ambient)|(samples)|(my music)|(audiobooks)|(sLSk)|(FOAD)"
+Global Needle4:="i)[1234567890.'`)}{(_]|(-khz)(rmx)|(remix)|(mix)|(refix)|(vip)|(featuring)|( feat)|(ft)|(rfl)|(-boss)(-sour)|(its)|(it's)|(-)|(-bpm)|(edit)"
+Global Needle2:="i)(\s[a-z]{1,2}\s)", Global Needle3:="( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]"
+Global StartPos_Offset:=0, Global StartPos_Offset := 4, Global Search_Root:="", Global Genre:=""
+Con_Cat_N_8:="c:\out\temp.txt"
+
+;VARs::::::::::::;
 Stop:=18809, Play:=0x2e0000, Paused:=32808, Prev:=18810, Next:=18811, Vol_Up:=32815, Vol_Down:=32816 ;Paused=18808     
-;Loop 2
-    ;DllCall( "ChangeWindowMessageFilter", uInt, "0x" (i:=!i?49:233), uint, 1)
+Loop 2
+    DllCall( "ChangeWindowMessageFilter", uInt, "0x" (i:=!i?49:233), uint, 1)
+sleep, 30
 process exist, ahk_exe WMPlayer.exe
-if Errorlevel, runWait "C:\Apps\WMPlayer.exe"
+if Errorlevel, runwait "C:\Apps\WMPlayer.exe"
+
 WMP := new RemoteWMP
 WinTitle=Windows Media Player
 sleep, 30
@@ -120,7 +126,7 @@ if !Secs2Sample_Start { ;First... get start time
 		Sample_start_min:=Sample_start_min-(Sample_start_Hr*60)
 	Sample_start_Sec:=Secs2Sample_Start-(Sample_start_min*60)
 } else {
-	Secs2Sample_End:=round(controls.currentPosition)
+	if Secs2Sample_End:=round(controls.currentPosition)
 Sample_End_min:= Floor(Secs2Sample_End/60)
 if Sample_End_Hr:=Floor(Sample_End_min/60)
 	Sample_End_min:=Sample_End_min-(Sample_End_Hr*60)
@@ -140,24 +146,48 @@ else if instr(DefaultChoice,c3)
 else if instr(DefaultChoice,c4)
 	Choices=%c1%|%c2%|%c3%|%c4%|
 else 	Choices=%c1%||%c2%|%c3%|%c4% ;IF no default is found, extract region is default
-gui, GuiName:new , , Question
+gui, Xtract_i:new , , Sampler
 gui +HwndQuestionHwnd
-gui, Add, checkbox, vSave ,save default
 gui, Add, DropDownList, w82 vChoice, %Choices%
+gui, Add, checkbox, vSave ,save default
 gui, Add, Button,  Default gPerform w80, OK  (Enter)
 gui, Add, Button,  w80 gCancel, Cancel  (Esc)
-gui, Show , Center, Question	
+gui, Show , Center, Sampler	
+OnMessage(0x200, "Help")
 return
+
+Help(wParam, lParam, Msg) {
+	MouseGetPos,,,, OutputVarControl
+	if !OutputVarControlold
+		OutputVarControlold=%OutputVarControl%
+	IfEqual, OutputVarControl, Button3 
+	{
+		if OutputVarControlold != OutputVarControl
+		toolTip ... Pick endpoint again`nOr Close window (x)`nto reset start position
+		OutputVarControlold=%OutputVarControl%
+	} else {
+		sleep % S
+		tooltip
+	}
+}
 
 ~escape:: 
 ifWinactive ahk_id %HwndQuestionHwnd%
 	gosub cancel
 return
 
+Xtract_GuiClose:
+gui, Destroy
+gosub Cleanup_xtract
+return
+
+Cleanup_xtract:
+Secs2Sample_End:="", Secs2Sample_Start:="", Output_Filename_Full:="", inputfilename:="", Output_Prefix:="", choice:=""
+return
+
 Cancel:
 gui, Destroy
-Secs2Sample_Start:=
-Exit
+return
 
 Perform:
 global needL := "i)(?:Extracted)(?:[ ])[0-9]"
@@ -180,23 +210,23 @@ if n:=fileexist(Output_Filename_Full)
 {
 	n := 1, RegXPos := 1, Match:=
 	while RegXPos := regexmatch(Output_Prefix, needL, Match, RegXPos) {
-		cunt := Match
+		File_Num := Match
 		RegXPos = 666
 	}
-	if !cunt {
-		CUNT:=1
-	} else {
-		cunt := cunt + 1
-	}
-	Output_Filename_Full=%OutDir%\%Output_Prefix% %CUNT%.%OutExtension%
-	} else
-		Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
+	if !File_Num
+		File_Num:=1
+	else 
+		File_Num := File_Num + 1
+	Output_Filename_Full=%OutDir%\%Output_Prefix% %File_Num%.%OutExtension%
+} 
+else
+	Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
 	if FileExist(Output_Filename_Full) { ; Check_Folder
 		splitPath, Output_Filename_Full , , , , Output_Prefix
 		goto File_Numbering
 		return
-}
-Output_Prefix=%Output_Prefix% %cunt%
+	}
+Output_Prefix=%Output_Prefix% %File_Num%
 
 if Extract && Trim 
 {
@@ -299,8 +329,8 @@ Attempt_Cut:
 if fileexist(Output_Filename_Full)
 	if InvokeVerb(Output_Filename_Full, "Cut", True)
 	{
-		Secs2Sample_End:="",Secs2Sample_Start:="",Output_Filename_Full:="", inputfilename:="", Output_Prefix:="", choice:=""
-		Exit
+		goSub Cleanup_xtract
+		return
 	}
 else {
 		sleep, % S
@@ -652,7 +682,7 @@ IWMPRemoteMediaServices_CreateInstance() {
    if !vtblPtrs
       vtblPtrs := [&vtblUnk, &vtblRms, &vtblIsp, &vtblOls]
 
-   pObj := DllCall("globalAlloc", "UInt", 0, "Ptr", size, "Ptr")
+   pObj := DllCall("GlobalAlloc", "UInt", 0, "Ptr", size, "Ptr")
    for i, ptr in vtblPtrs {
       off := A_PtrSize*(i - 1) + 4*(i - 1)
       NumPut(ptr, pObj+0, off, "Ptr")
@@ -718,7 +748,7 @@ IUnknown_Release(this_) {
    if (_refCount > 0) {
       NumPut(--_refCount, iunk+0, (A_PtrSize + 4)*4, "UInt")
       if (_refCount == 0)
-         DllCall("globalFree", "Ptr", iunk, "Ptr")
+         DllCall("GlobalFree", "Ptr", iunk, "Ptr")
    }
    return _refCount
 }
@@ -954,15 +984,15 @@ if (n:=fileexist(Output_Filename_Full)) {
 	n := 1, RegXPos = 1, Match :=
 	DEAD_NIG=%Output_Prefix%
 	while RegXPos := regexmatch(DEAD_NIG, needL, Match, RegXPos) {
-		cunt := Match
+		File_Num := Match
 		RegXPos = 666
 	}
-	if !cunt {
-		CUNT:=1
+	if !File_Num {
+		File_Num:=1
 	} else {
-		cunt := cunt + 1
+		File_Num := File_Num + 1
 	}
-	Output_Filename_Full=%OutDir%\%Output_Prefix% %CUNT%.%OutExtension%
+	Output_Filename_Full=%OutDir%\%Output_Prefix% %File_Num%.%OutExtension%
 } else
 		Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
 	if FileExist(Output_Filename_Full) { ; Check_Folder
