@@ -1,114 +1,119 @@
-﻿#NoEnv 		
+﻿#NoEnv
+; #Warn
+sendMode Input
+SetWorkingDir %A_ScriptDir%
+#NoEnv 		
 #Persistent 		
 #singleinstance force
 #Include VA.ahk
-SendMode Input
+sendMode Input
 ;SetBatchLines -1
 CoordMode window, screen
 SetWorkingDir %A_ScriptDir% 
-	Menu, Tray, Icon, WMP.ico
+Menu, Tray, Icon, WMP.ico
 Menu, Tray, noStandard
 Menu, Tray, Add, Open script folder, Open_script_folder,
 Menu, Tray, Standard
-goto Main
-Open_script_folder:
-run %A_ScriptDir%
-return
-Main:
-Global Genres:="i)(dnb)|(reggae)|(riddim)|(hiphop)|(garage)|(rock)|(ambient)|(samples)|(my music)|(audiobooks)|(sLSk)|(FOAD)"
-Global Needle4:="i)[1234567890.'`)}{(_]|(-khz)(rmx)|(remix)|(mix)|(refix)|(vip)|(featuring)|( feat)|(ft)|(rfl)|(-boss)(-sour)|(its)|(it's)|(-)|(-bpm)"
-Global Needle2:="i)(\s[a-z]{1,2}\s)", Global Needle3:="( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]"
-Global StartPos_Offset:=0, Global StartPos_Offset := 4, Global Search_Root:="", Global Genre:=""
-concat:="c:\out\temp.txt"
 ;VARs::::::::::::;
+global S := 1200 ;; Sleep Time (ms)
+global Genres:="i)(dnb)|(reggae)|(riddim)|(hiphop)|(garage)|(rock)|(ambient)|(samples)|(my music)|(audiobooks)|(sLSk)|(FOAD)", global Needle4:="i)[1234567890.'`)}{(_]|(-khz)(rmx)|(remix)|(mix)|(refix)|(vip)|(featuring)|( feat)|(ft)|(rfl)|(-boss)(-sour)|(its)|(it's)|(-)|(-bpm)|(edit)", global Needle2:="i)(\s[a-z]{1,2}\s)", global Needle3:="( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]", Con_Cat_N_8:="c:\out\temp.txt", global StartPos_Offset:=0, global StartPos_Offset := 4, global Search_Root:="", global Genre:="", global newsong:="", global G3nre:=""
 Stop:=18809, Play:=0x2e0000, Paused:=32808, Prev:=18810, Next:=18811, Vol_Up:=32815, Vol_Down:=32816 ;Paused=18808     
-Loop 2
-    DllCall( "ChangeWindowMessageFilter", uInt, "0x" (i:=!i?49:233), uint, 1)
-Sleep, 30
+;Loop 2
+    ;DllCall( "ChangeWindowMessageFilter", uInt, "0x" (i:=!i?49:233), uint, 1)
 process exist, ahk_exe WMPlayer.exe
-if Errorlevel, runwait "C:\Apps\WMPlayer.exe"
-
+if Errorlevel, runWait "C:\Apps\WMPlayer.exe"
 WMP := new RemoteWMP
 WinTitle=Windows Media Player
-Sleep, 30
+sleep, 30
 Media := WMP.player.currentMedia
 Controls := WMP.player.Controls
-TrayTip, Windows Media Player, % Media.sourceURL
+trayTip, Windows Media Player, % Media.sourceURL
 onexit() {
-FileDelete, %concat%
+	FileDelete, %Con_Cat_N_8%
 }
 ;newsong= % Media.sourceURL
 
-;Binds::::::::::::
+;Binds:::::::::::: ::btw::by the way
 
-^q::
+<^>!q:: 	;	ALTgr + Q  ???
 ifWinactive, AHK_Class CabinetWClass || AHK_Class WorkerW
 {
-;havent figured out hjow to invoke verb yet nq
+	;invoke verb for desktop forgot which one was required
 }
 return
-^PgUp::PostMessage, 0x111, vol_up, 0, ,%WinTitle% 		; Volume Up 		- 	;ctrl shift page up
-Return
 
-^PgDn::PostMessage,  0x111, vol_down, 0, ,%WinTitle% 	; Volume Down	-	;ctrl shift page down
-Return
+;		ALTgr + PAGE UP 	; 	Volume Up	
+<^>!PgUp::postMessage, 0x111, vol_up, 0, ,%WinTitle% 		
+return
 
-<^>!Enter::			;alt gr enter - CLIPBOARD TITLE and ARTIST 	;TrayTip, % Media.sourceURL
+;		ALTgr + PAGE UP 	; 	Volume DOWN	
+<^>!PgDn::postMessage,  0x111, vol_down, 0, ,%WinTitle% 	; Volume Down	-	;ctrl shift page down
+return
+
+<^>!Enter:: 		;	ALTgr + Enter	;	open loc of current file & copy clipboard TITLE and ARTIST info
 WMP := new RemoteWMP
 Media := WMP.player.currentMedia
-unc= % Media.sourceURL
+UNC = % Media.sourceURL
+o:=comobjcreate("Shell.Application")
+splitPath,UNC,file,directory,ext
+if !errorlevel {
+	od:=o.namespace(directory)
+	of:=od.parsename(file)
+	G3nre:=od.getdetailsof(of,16) ;16 = genre
+}
 Controls := WMP.player.Controls
-SplitPath, unc , OutFileName, OutDir, OutExtension, OutNameNoExt, OutDrive
-Sleep, 250
-1st:= RegExReplace(unc, "^.+\\|\.[^.]+$")
+splitPath, UNC , OutFileName, OutDir, OutExtension, OutNameNoExt, OutDrive
+sleep, 250
+1st:= RegExReplace(UNC, "^.+\\|\.[^.]+$")
 2nd := RegExReplace(1st,  "[']|[`]|[)]|[(]|[_]|(  )|( )|(YouTube)", " ")
-Clipboard := RegExReplace(2nd, Needle3, " ") ;"( . )|(    )|(   )|(  )"
-runwait %OutDir%
-unc:="", 1st:="", 2nd:=""
-Return
+clipboard := RegExReplace(2nd, Needle3, " ") ;"( . )|(    )|(   )|(  )"
+run %COMSPEC% /c explorer.exe /select`, "%UNC%",, Hide
+sleep %S%
+sendInput {F5}
+UNC:="", 1st:="", 2nd:=""
+return
 
-<^>!i::			;alt gr and I
-GoSub WMP_Copy_Search
-Return
+<^>!i::			;	ALTgr + i
+goSub WMP_Copy_Search 	;	Search sLSk and YouTube for current file
+return
 
-<^>!s::			;alt gr and I
-GoSub WMP_Copy_Search_explorer
-Return
+<^>!s::			;	ALTgr + S
+goSub WMP_Copy_Search_explorer 	;	Search file_explorer starting in detected genre location
+return
 
-<^>!p::			;alt gr and p
-GoSub WMP_add_Playlist
-Return
+<^>!p::			;	ALTgr + Enter
+goSub WMP_add_Playlist 	;	Add to currently building playlist (not current playlist)
+return
 
-<^>!Del::			;ctrl shift del
-GoSub WMP_Del
-Return
+<^>!Del::			;	ALTgr + Enter
+goSub WMP_Del 	;	Delete Current, skip to next
+return
 
-<^>!Space::		;ctrl shift space
-GoSub WMP_Pause
-Return
+<^>!Space::		;	ALTgr + Enter
+goSub WMP_Pause 	;	Play Pause
+return
 
-<^>!Left::			;ctrl shift left
-GoSub WMP_Prev
-Return
+<^>!Left::			;	ALTgr + Left Arrow
+goSub WMP_Prev 	;	Previous Track
+return
 
-<^>!Right::		;altGr right
-GoSub WMP_Next
-Return
+<^>!Right::		;	ALTgr + Right Arrow
+goSub WMP_Next 	;	Next Track
+return
 
-<^>!C::		;altGr x  SAMPLE START / END. 
-WMP := new RemoteWMP
-Sleep, 20
+<^>!c::				;	ALTgr + C
+wMP := new RemoteWMP
+sleep, 20
 Media := WMP.player.currentMedia
 Controls := WMP.player.Controls
-Sleep, 20
+sleep, 20
 FullPath:=Media.sourceurl
-SplitPath, FullPath , OutFileName, OutDir, OutExtension, OutNameNoExt, OutDrive
-
-if !Secs2Sample_Start {
+splitPath, FullPath , OutFileName, OutDir, OutExtension, OutNameNoExt, OutDrive
+if !Secs2Sample_Start { ;First... get start time 
 	if Secs2Sample_Start:=round(controls.currentPosition)
-		Sample_start_min:= Floor(Secs2Sample_Start/60)
+		Sample_start_min:= Floor(Secs2Sample_Start/60) 
 	else {
-		Secs2Sample_Start:="0"
+		Secs2Sample_Start:="0" ;  lets set start time 0 when it will not be correctly detected by control.current
 		Sample_start_min:= Floor(Secs2Sample_Start/60)
 	}
 	if Sample_start_Hr:=Floor(Sample_start_min/60)
@@ -116,82 +121,97 @@ if !Secs2Sample_Start {
 	Sample_start_Sec:=Secs2Sample_Start-(Sample_start_min*60)
 } else {
 	Secs2Sample_End:=round(controls.currentPosition)
-	Sample_End_min:= Floor(Secs2Sample_End/60)
-	if Sample_End_Hr:=Floor(Sample_End_min/60)
-		Sample_End_min:=Sample_End_min-(Sample_End_Hr*60)
-	Sample_End_Sec:=Secs2Sample_End-(Sample_End_min*60)
-	Start_Time=%Sample_start_Hr%:%Sample_start_min%:%Sample_start_Sec%
-	End_Time=%Sample_End_Hr%:%Sample_End_min%:%Sample_End_Sec%
-	Gui, GuiName:new , , Question
-	Gui +HwndQuestionHwnd
-	Gui, Add, Text,, SAMPLE 
-	Gui, Add, CheckBox, Checked center vExtract, Extract
-	Gui, Add, Text,, TRIM 
-	Gui, Add, CheckBox, center vTrim, Delete
-	; Gui, Add, CheckBox, center vReplace, Replace
-	Gui, Add, Button, center Default gPerform w80, OK
-	Gui, Add, Button, center w80 gCancel, Cancel
-	Gui, Show , Center, Question
-	Return
-	
+Sample_End_min:= Floor(Secs2Sample_End/60)
+if Sample_End_Hr:=Floor(Sample_End_min/60)
+	Sample_End_min:=Sample_End_min-(Sample_End_Hr*60)
+Sample_End_Sec:=Secs2Sample_End-(Sample_End_min*60)
+Start_Time=%Sample_start_Hr%:%Sample_start_min%:%Sample_start_Sec%
+End_Time=%Sample_End_Hr%:%Sample_End_min%:%Sample_End_Sec%
+
+GUI_:
+regRead, DefaultChoice, HKEY_CURRENT_USER\Software\WMP_MATT, extractor default
+c1:="extract region", c2:="delete region", c3:="xtract voice", c4:="xtract music"
+if instr(DefaultChoice,c1)
+	Choices=%c1%||%c2%|%c3%|%c4%
+else if instr(DefaultChoice,c2)
+	Choices=%c1%|%c2%||%c3%|%c4%
+else if instr(DefaultChoice,c3)
+	Choices=%c1%|%c2%|%c3%||%c4%
+else if instr(DefaultChoice,c4)
+	Choices=%c1%|%c2%|%c3%|%c4%|
+else 	Choices=%c1%||%c2%|%c3%|%c4% ;IF no default is found, extract region is default
+gui, GuiName:new , , Question
+gui +HwndQuestionHwnd
+gui, Add, checkbox, vSave ,save default
+gui, Add, DropDownList, w82 vChoice, %Choices%
+gui, Add, Button,  Default gPerform w80, OK  (Enter)
+gui, Add, Button,  w80 gCancel, Cancel  (Esc)
+gui, Show , Center, Question	
+return
+
+~escape:: 
+ifWinactive ahk_id %HwndQuestionHwnd%
+	gosub cancel
+return
+
 Cancel:
-Gui, Destroy
+gui, Destroy
 Secs2Sample_Start:=
 Exit
 
 Perform:
-Gui, Submit
-Gui, Destroy 
+global needL := "i)(?:Extracted)(?:[ ])[0-9]"
+gui, Submit
+gui, Destroy 
+inichoice:=choice
+if Save 
+	;IniWrite, %choice%, wmpmatt.ini, Settings, inichoice
+	RegWrite, REG_SZ, HKEY_CURRENT_USER\SOFTWARE\WMP_MATT, Extractor Default, %choice%
 Secs2Sample_Start:=
-If Extract
-	Process_Action:="-t", Process_Type:="Extracted"
-If Trim 
-	Process_Action:="-to", Process_Type:="Trimmed"
-Output_Prefix=%OutNameNoExt% - %Process_Type%
+If Choice:="Extract"
+	process_Action:="-t", process_Type:="Extracted"
+If Choice:="Trim Region"
+	process_Action:="-to", process_Type:="Trimmed"
+Output_Prefix=%OutNameNoExt% - %process_Type%
 Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
 
-global gobbler := "i)(?:Extracted)(?:[ ])[0-9]"
-shitstain:
-msgbox % Output_Filename_Full
+File_Numbering:
 if n:=fileexist(Output_Filename_Full)
 {
-	bum:=
-	n := 1
-	nigga = 1
-	DEAD_NIG=%Output_Prefix%
-	while nigga := regexmatch(DEAD_NIG, gobbler, bum, nigga) {
-		cunt := bum
-		nigga = 666
+	n := 1, RegXPos := 1, Match:=
+	while RegXPos := regexmatch(Output_Prefix, needL, Match, RegXPos) {
+		cunt := Match
+		RegXPos = 666
 	}
 	if !cunt {
 		CUNT:=1
-	} ELSE {
+	} else {
 		cunt := cunt + 1
 	}
 	Output_Filename_Full=%OutDir%\%Output_Prefix% %CUNT%.%OutExtension%
 	} else
 		Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
 	if FileExist(Output_Filename_Full) { ; Check_Folder
-		SplitPath, Output_Filename_Full , , , , Output_Prefix
-		gosub shitstain
+		splitPath, Output_Filename_Full , , , , Output_Prefix
+		goto File_Numbering
+		return
 }
+Output_Prefix=%Output_Prefix% %cunt%
 
 if Extract && Trim 
 {
-msgbox all niggers musty die
 	Output_Filename_Full=%OutDir%\%OutNameNoExt% - Extracted.%OutExtension%
-	RunWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -t %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -t %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
 	IF DICKS:=INSTR(OutNameNoExt, "Trimmed")
 		Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
 	else
 		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
-	RunWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -to %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -to %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
 	InvokeVerb(Output_Filename_Full, "Cut", True)
 	return
 }
-If Trim
+else If Trim
 {
-msgbox all niggers musty die
 	SecsDuration:=round(media.getItemInfo("Duration"))
 	Sample_Duration_min:= Floor(SecsDuration/60)
 	if Sample_Duration_Hr:=Floor(Sample_Duration_min/60)
@@ -200,19 +220,19 @@ msgbox all niggers musty die
 	Output_Duration=%Sample_Duration_Hr%:%Sample_Duration_min%:%Sample_Duration_Sec%
 	FirstHalf=%OutDir%\%OutNameNoExt% - Trimmed first half.%OutExtension%
 	SecondHalf=%OutDir%\%OutNameNoExt% - Trimmed 2nd half.%OutExtension%
-	RunWait, %comspec% /c ffmpeg -i "%FullPath%" -ss 0:0:0 -to %Start_Time% -c:v copy -c:a copy "%FirstHalf%",,Hidden
-	RunWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %End_Time% -to %Output_Duration% -c:v copy -c:a copy "%SecondHalf%",,Hidden
-	FileAppend , file '%FirstHalf%'`n, %concat%
-	FileAppend , file '%SecondHalf%'`n, %concat%
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss 0:0:0 -to %Start_Time% -c:v copy -c:a copy "%FirstHalf%",,hidden
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %End_Time% -to %Output_Duration% -c:v copy -c:a copy "%SecondHalf%",,hidden
+	FileAppend , file '%FirstHalf%'`n, %Con_Cat_N_8%
+	FileAppend , file '%SecondHalf%'`n, %Con_Cat_N_8%
 	sleep 1500
 	IF DICKS:=INSTR(OutNameNoExt, "Trimmed")
 		Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
 	else
 		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
-	RunWait, %comspec% /c ffmpeg -y -f concat -safe 0 -i "%concat%" -c copy "%Output_Filename_Full%",,Hidden
+	runWait, %comspec% /c ffmpeg -y -f concat -safe 0 -i "%Con_Cat_N_8%" -c copy "%Output_Filename_Full%",,hidden
 	FileDelete, %FirstHalf%
 	FileDelete, %SecondHalf%
-	FileDelete, %concat%
+	FileDelete, %Con_Cat_N_8%
 	FileGetTime, Old_D8 , %FullPath%, m
 	FileSetTime, Old_D8 , %Output_Filename_Full%, m
 	;FileRecycle, %FullPath%
@@ -223,330 +243,383 @@ msgbox all niggers musty die
 	else 
 		goto bugga
 	Exit
-} Else {
-msgbox suck a fucking niggers dick
-	RunWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% %Process_Action% %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
-	if InvokeVerb(Output_Filename_Full, "Cut", True)
-		{
-		Secs2Sample_End:="",Secs2Sample_Start:="",Output_Filename_Full:=""
-		Exit
+} else {
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% %process_Action% %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
+	if NewEnc {
+		msgbox, FFMPEG Encode section wip ;encode
+		return
+	} 
+	Else {
+		run, conda run spleeter separate "%Output_Filename_Full%",,hidden
+		winwaitactive, ahk_exe conda.exe
+		winhide, ahk_exe conda.exe
+		inputfilename=%Output_Filename_Full%
+		if (choice="Extract Voice") {
+			;Main_Result_WAV=%temp%\separated_audio\%OutNameNoExt%\vocals.wav
+			Main_Result_WAV=C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%\vocals.wav		
+			Output_Filename_Full=%OutDir%\%Output_Prefix% - Voice.wav
+			if !raw
+				msgbox do encode
+			else {
+				My_Gooch:
+				if !fileexist(Main_Result_WAV) { ; check spleeter files have appeared
+					sleep % S
+					goto My_Gooch
+				}
+				else {
+					msgbox, %Main_Result_WAV%  exist 
+				}
+				filemove %Main_Result_WAV%, %Output_Filename_Full%
+				if errorlevel, msgbox %errorlevel% 
+				Confirm_Extraction_Move:
+				if !fileexist(Output_Filename_Full) { ; check if previous move has occurred
+					sleep % S		
+					goto Confirm_Extraction_Move
+				}				
+				filedelete, %inputfilename% ; remove temp output file
+				fileRemoveDir, C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%
+			}
 		}
-	Return
+	else 
+		if (choice="Extract Music") {		;Main_Result_WAV=%temp%\separated_audio\%OutNameNoExt%\accompaniment.wav
+			Main_Result_WAV=C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%\accompaniment.wav
+			if !raw {
+				msgbox do encode
+				return
+			}
+			else {
+				Output_Filename_Full=%OutDir%\%OutNameNoExt% - Music Content of Extracted.wav
+				fileMove, Main_Result_WAV, Output_Filename_Full
+				fileRecycle, inputfilename
+				fileRemoveDir, C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%
+			}
+		}
+	
+Attempt_Cut:
+if fileexist(Output_Filename_Full)
+	if InvokeVerb(Output_Filename_Full, "Cut", True)
+	{
+		Secs2Sample_End:="",Secs2Sample_Start:="",Output_Filename_Full:="", inputfilename:="", Output_Prefix:="", choice:=""
+		Exit
 	}
-Escape::Gui, Destroy
+else {
+		sleep, % S
+		goto Attempt_Cut
+	}
+
+	}
 }
-Return
+gui, Destroy
+return
+
+}
+return
+
+
+
 
 <^>!x::		;altGr x  
 Path2File:=Media.sourceURL
 if InvokeVerb(Path2File, "Cut")
-	{ 
-    Process,Exist
+{ 
+    process,Exist
     hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
-	}  ; run WMP_cut.ahk ;cut mp3 to clipboard
+} 
 Menu, Tray, Icon, copy.ico
-Monster_Clip=%Clipboard%
-SetTimer Clip_Commander, -1000
-Return
-
+Monster_Clip=%clipboard%
+setTimer Clip_Commander, -1000
+return
 
 WMP_Pause:
-	Process, Exist, WMPlayer.exe
+	process, Exist, WMPlayer.exe
 	ifWinNotExist, Windows Media Player
-		TrayTip, Windows Media Player, Process found but window Not,3000,2
-	Else
-		PostMessage, 0x111, Paused, 0, ,%WinTitle%
-	Return
+		trayTip, Windows Media Player, process found but window Not,3000,2
+	else
+		postMessage, 0x111, Paused, 0, ,%WinTitle%
+	return
 
 WMP_Prev:
-	Process, Exist, WMPlayer.exe
-	ifWinNotExist, Windows Media Player
-		TrayTip, Windows Media Player, Process found but window Not,3000,2
-	Else
+process, Exist, WMPlayer.exe
+ifWinNotExist, Windows Media Player
+	trayTip, Windows Media Player, process found but window Not,3000,2
+else
+	{
+	postMessage, 0x111, Stop, 0, ,%WinTitle%
+	sleep, 50
+	postMessage, 0x111, Prev, 0, ,%WinTitle%
+	sleep, 50
+	; WMP := new RemoteWMP
+	; Media := WMP.player.currentMedia
+	; Controls := WMP.player.Controls
+	thecall2:
+	goSub WMP_Refresh_2
+	if newsong =% oldsong
 		{
-		PostMessage, 0x111, Stop, 0, ,%WinTitle%
-		Sleep, 50
-		PostMessage, 0x111, Prev, 0, ,%WinTitle%
-		Sleep, 50
-		; WMP := new RemoteWMP
-		; Media := WMP.player.currentMedia
-		; Controls := WMP.player.Controls
-		thecall2:
-		GoSub WMP_Refresh_2
-		if newsong =% oldsong
-			{
-			;tooltip, newsong = oldsong
-			Sleep, 100
-			GoSub thecall2
-			}
-		Else
-			{
-			WMP.jump(StartPos_Offset)
-			Sleep, 350
-			PostMessage, 0x319, 0, Play, ,%WinTitle%
-			Return
-			}
-		Return
+		;tooltip, newsong = oldsong
+		sleep, 100
+		goSub thecall2
 		}
-	Return
+	else
+		{
+		WMP.jump(StartPos_Offset)
+		sleep, 350
+		postMessage, 0x319, 0, Play, ,%WinTitle%
+		return
+		}
+	return
+	}
+return
 
 /* 
 youtube_next:
 sendinput, {Media_Next}, chrome
  */
 
-
 WMP_NEXT:
-Process, Exist, WMPlayer.exe
+genre:=
+G3nre:=
+process, Exist, WMPlayer.exe
 ifWinNotExist, Windows Media Player
-	{
-	TrayTip, Windows Media Player, Process found but window Not,3000,2
-	Return
-	}
-Else
-	{
+{
+	trayTip, Windows Media Player, process found but window Not,3000,2
+	return
+} else {
 	oldsong =% newsong
-	PostMessage, 0x111, Stop, 0, ,%WinTitle%
-	Sleep, 50
-	PostMessage, 0x111, Next, 0, ,%WinTitle%
-	Sleep, 50
+	newsong:=
+	postMessage, 0x111, Stop, 0, ,%WinTitle%
+	sleep, 50
+	postMessage, 0x111, Next, 0, ,%WinTitle%
+	sleep, 50
 	thecall1:
-	GoSub WMP_Refresh_2
+	goSub WMP_Refresh_2
 	if newsong =% oldsong
-		{
-		TrayTip Windows Media Player, End of Playlist		
+	{
+		trayTip Windows Media Player, End of Playlist		
 		;tooltip, newsong = oldsong
 		Exit
-		} Else	{
-		GoSub Genre_Search
+	} else {
+		goSub Genre_Search
 		WMP.jump(StartPos_Offset)
-		Sleep, 101
-		PostMessage, 0x319, 0, Play, ,%WinTitle%
-		}
-	Return
+		sleep, 101
+		postMessage, 0x319, 0, Play, ,%WinTitle%
 	}
- 
+	return
+}
+return
+
 WMP_Copy_Search:
-{
 WMP := new RemoteWMP
-Sleep, 20
+sleep, 20
 Media := WMP.player.currentMedia
 Controls := WMP.player.Controls
-Sleep, 20
+sleep, 20
 FullPath:=Media.sourceurl
-Sleep, 20
-Process, Exist, slsk2.exe
+sleep, 20
+FullPath= % Media.sourceURL
+process, Exist, slsk2.exe
      if !ErrorLevel
 		{
-		TrayTip, Windows Media Player,, error slsk not open
-	} Else {
-		SplitPath, FullPath,  , , , OutNameNoExt
+		trayTip, Windows Media Player,, error slsk not open
+	} else {
+		splitPath, FullPath,  , , , OutNameNoExt
 		1st:= RegExReplace(OutNameNoExt,Needle4, " ")
 		2nd:= RegExReplace(1st,Needle2, " ")
-		Run "C:\script\AHK\Working\slsk fix.ahk"	
-		MouseGetPos, orig_x, orig_y
-		Sleep, 1500	
-		WinGetPos,,, Width, Height, %WinTitle%
-		Sleep, 500
+		run "C:\script\AHK\Working\slsk fix.ahk"	
+		mouseGetPos, orig_x, orig_y
+		sleep, 1500	
+		winGetPos,,, Width, Height, %WinTitle%
+		sleep, 500
 		;WinMove, %WinTitle%,, (A_ScreenWidth/2)-(Width/2), (1400/2)-(400/2)
-		MouseMove, 145, 90,,
-		Send {LButton}
-		Send % Stripped_Name := RegExReplace(2nd, Needle3, " ")
-		Send {Enter}
-		MouseMove, 1453, 243,,
-		Send {LButton}
-		MouseMove, orig_x, orig_y, 
-		Clipboard:=Stripped_Name
-		Return
-		}
-}
-
-WMP_Copy_Search_explorer:
-{
-GoSub WMP_Refresh_2
-GoSub Genre_Search
-TrayTip, Windows Media Player, path
-FullPath=%newsong%
-splitpath, FullPath,  , , , OutNameNoExt
-1st:= RegExReplace(OutNameNoExt,Needle4, " ")
-2nd:= RegExReplace(1st,Needle2, " ")
-run explorer.exe %Search_Root%
-winwaitactive, ahk_exe explorer.exe, , 5
-Sleep, 1000
-sendinput ^f
-Sleep, 1500
-Send % Stripped_Name := RegExReplace(2nd, "( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]", " ")
-Sleep, 500
-sendinput {enter}
-	;Send {enter}
-	;MouseMove, 1421, 243,,
-	;Send {LButton}
-	;MouseMove, orig_x, orig_y, 
-	;Clipboard:=3rd
-	;Return
-}
-
-Genre_Search:
-	{
-	p:= 1
-	Matched_String:= ""
-	genre:=""
-	while p := RegExMatch(newsong, Genres, Matched_String, p + StrLen(Matched_String)) {
-		if Matched_String=dnb
-			StartPos_Offset:=86, p:=999, Genre:="dnb", Search_Root:="S:\- DNB"
-		Else if Matched_String=reggae
-			StartPos_Offset:=14, p:=999, Genre:="reggae", Search_Root:="S:\- REGGAE"
-		Else if Matched_String=riddim
-			StartPos_Offset:=14, p:=999, Genre:="riddim", Search_Root:="S:\- REGGAE"
-		Else if Matched_String=hiphop
-			StartPos_Offset:=17, p:=999, Genre:="hiphop", Search_Root:="S:\- HIPHOP"
-		Else if Matched_String=garage
-			StartPos_Offset:=45, p:=999, Genre:="garage", Search_Root:="S:\- - MP3 -\Garage"
-		Else if Matched_String=rock
-			StartPos_Offset:=17, p:=999, Genre:="rock", Search_Root:="S:\- - MP3 -\- Other\Rock"
-		Else if Matched_String=ambient
-			StartPos_Offset:=30, p:=999, Genre:="ambient", Search_Root:="S:\- - MP3 -\Chill"
-		Else if Matched_String=samples
-			StartPos_Offset:=0, p:=999, Genre:="samples", Search_Root:="S:\Samples"
-		Else if Matched_String=my music
-			StartPos_Offset:=0, p:=999, Genre:="my music", Search_Root:="S:\Documents\My Music"
-		Else if Matched_String=audiobooks
-			StartPos_Offset:=0, p:=999, Genre:="audiobooks", Search_Root:="S:\Documents\My Audio"
-		Else if Matched_String=sLSk
-			StartPos_Offset:=45, p:=999, Genre:="sLSk"
-		Else if Matched_String=FOAD
-			StartPos_Offset:=0, p:=999, Genre:=""
-		Return
-		}
-	}
-
-
-WMP_Refresh: 
-{
-WMP := new RemoteWMP
-Media := WMP.player.currentMedia
-Controls := WMP.player.Controls
-Return
-}
-
-WMP_Refresh_2:
-{
-Sleep, 200
-GoSub WMP_refresh
-Sleep, 200
-newsong= % Media.sourceURL
-Sleep, 200
-Return
-}
-
-
-WMP_Del: 
-{
-Process, Exist, WMPlayer.exe
-WMP2del := new RemoteWMP
-Sleep, 300
-Media2del := WMP2del.player.currentMedia
-GoSub WMP_next
-SetTimer, DELETE_, -1000
-Return
-}
-
-DELETE_:   
-{   
-try 
-File2Del= % Media2del.sourceURL
-catch
-GoSub WMP_Del
-FileRecycle, % File2Del
-;TrayTip, Windows Media Player, Deleted %File2Del%, 3, 1
-Return
-}
-
-WMP_add_Playlist:
-	WMP := new RemoteWMP
-	Sleep, 20
-	Media := WMP.player.currentMedia
-	Controls := WMP.player.Controls
-	Sleep, 20
-	FullPath:=Media.sourceurl
-	Sleep, 20
-	;SplitPath, FullPath,  , , , OutNameNoExt
-	if fileexist New_Playlist.m3u
-		{
-		if !fileexist Playlist.m3u
-			filemove New_Playlist.m3u, Playlist.m3u
-		else
-			try
-				{
-				if !fileexist Playlist%p00f%.m3u
-				filemove New_Playlist.m3u, Playlist%p00f%.m3u
-				}
-			catch
-				{
-				p00f:=p00f+1
-				}
-		}
-	else  
-		{
-		fileappend %fullpath%`n, New_Playlist.m3u
+		mouseMove, 145, 90,,
+		send {LButton}
+		send % Stripped_Name := RegExReplace(2nd, Needle3, " ")
+		send {Enter}
+		mouseMove, 1453, 243,,
+		send {LButton}
+		mouseMove, orig_x, orig_y, 
+		clipboard:=Stripped_Name
+		return
 		}
 return
 
-Clip_Commander:
-if clipboard!=%Monster_Clip%
-{
-	SetTimer Clip_Commander, off
-Menu, Tray, Icon, WMP.ico
-}
-Else Return
+WMP_Copy_Search_explorer:
+goSub WMP_Refresh_2
+goSub Genre_Search
+trayTip, Windows Media Player, path
+FullPath=%newsong%
+splitPath, FullPath,  , , , OutNameNoExt
+1st:= regExReplace(OutNameNoExt,Needle4, " ")
+2nd:= regExReplace(1st,Needle2, " ")
+run explorer.exe %Search_Root%
+winWaitActive, ahk_exe explorer.exe, , 5
+sleep, 1000
+sendinput ^f
+sleep, 1500
+send % Stripped_Name := RegExReplace(2nd, "( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]", " ")
+sleep, 500
+sendinput {enter}
+	;send {enter}
+	;mouseMove, 1421, 243,,
+	;send {LButton}
+	;mouseMove, orig_x, orig_y, 
+	;clipboard:=3rd
+return
 
-
-class RemoteWMP
-{
-   __New()  {
-      static IID_IOleClientSite := "{00000118-0000-0000-C000-000000000046}"
-           , IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
-      Process, Exist, WMPlayer.exe
-      if !ErrorLevel
-         TrayTip, Windows Media Player, WMPlayer.exe is not running
-      if !this.player := ComObjCreate("WMPlayer.OCX.7")
-		TrayTip, Windows Media Player, Failed to get WMPlayer.OCX.7 object
-      this.rms := IWMPRemoteMediaServices_CreateInstance()
-      this.ocs := ComObjQuery(this.rms, IID_IOleClientSite)
-      this.ole := ComObjQuery(this.player, IID_IOleObject)
-      DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", this.ocs)
-   }
-   
-   __Delete()  {
-      if !this.player
-         Return
-      DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", 0)
-      for k, obj in [this.ole, this.ocs, this.rms]
-         ObjRelease(obj)
-      this.player := ""
-   }
-   
-   Jump(sec)  {
-try{
-      this.player.Controls.currentPosition += sec
+Genre_Search:
+p := 1, Matched_String := "",	genre := ""
+o:=comobjcreate("Shell.Application")
+splitPath,newsong,file,directory,ext
+od:=o.namespace(directory)
+of:=od.parsename(file)
+G3nre:=od.getdetailsof(of,16)
+while p := RegExMatch(newsong, Genres, Matched_String, p + StrLen(Matched_String)) {
+	if Matched_String=dnb
+		StartPos_Offset:=86, p:=999, Genre:="dnb", Search_Root:="S:\- DNB"
+	else if Matched_String=reggae
+		StartPos_Offset:=14, p:=999, Genre:="reggae", Search_Root:="S:\- REGGAE"
+	else if Matched_String=riddim
+		StartPos_Offset:=14, p:=999, Genre:="riddim", Search_Root:="S:\- REGGAE"
+	else if Matched_String=hiphop
+		StartPos_Offset:=17, p:=999, Genre:="hiphop", Search_Root:="S:\- HIPHOP"
+	else if Matched_String=garage
+		StartPos_Offset:=45, p:=999, Genre:="garage", Search_Root:="S:\- - MP3 -\Garage"
+	else if Matched_String=rock
+		StartPos_Offset:=17, p:=999, Genre:="rock", Search_Root:="S:\- - MP3 -\- Other\Rock"
+	else if Matched_String=ambient
+		StartPos_Offset:=30, p:=999, Genre:="ambient", Search_Root:="S:\- - MP3 -\Chill"
+	else if Matched_String=samples
+		StartPos_Offset:=0, p:=999, Genre:="samples", Search_Root:="S:\Samples"
+	else if Matched_String=my music
+		StartPos_Offset:=0, p:=999, Genre:="my music", Search_Root:="S:\Documents\My Music"
+	else if Matched_String=audiobooks
+		StartPos_Offset:=0, p:=999, Genre:="audiobooks", Search_Root:="S:\Documents\My Audio"
+	else if Matched_String=_SLSK_
+		StartPos_Offset:=45, p:=999, Genre:="sLSk"
+	else if Matched_String=FOAD
+		StartPos_Offset:=0, p:=999, Genre:=""
+	if (g3nre="dnb") || (g3nre="drum & bass") || (g3nre="drum&bass") || (g3nre="drum n bass") 
+		StartPos_Offset:=86, p:=999, Genre:="dnb", Search_Root:="S:\- DNB", faggot:=1
+	else if (g3nre="Reggae") || (g3nre="Dancehall") || (g3nre="Ragge") || (g3nre="Riddim") 
+		StartPos_Offset:=14, p:=999, Genre:="reggae", Search_Root:="S:\- REGGAE", faggot:=1
+	else if (g3nre="Hip-Hop") || (g3nre="HipHop") || (g3nre="Rap") || (g3nre="Gangster Rap") 
+		StartPos_Offset:=17, p:=999, Genre:="hiphop", Search_Root:="S:\- HIPHOP", faggot:=1
+	else if (g3nre="Garage") || (g3nre="2 Step") || (g3nre="Bassline")
+		StartPos_Offset:=45, p:=999, Genre:="garage", Search_Root:="S:\- - MP3 -\Garage", faggot:=1
+	else if (g3nre="Rock") || (g3nre="Rock n Roll") || (g3nre="Metal")
+		StartPos_Offset:=17, p:=999, Genre:="rock", Search_Root:="S:\- - MP3 -\- Other\Rock", faggot:=1
+	else if (g3nre="Ambient") || (g3nre="Chill Out")
+		StartPos_Offset:=30, p:=999, Genre:="ambient", Search_Root:="S:\- - MP3 -\Chill", faggot:=1
+	else if (g3nre="Spoken Word") || (g3nre="Audiobook")
+		StartPos_Offset:=0, p:=999, Genre:="audiobooks", Search_Root:="S:\Documents\My Audio", faggot:=1
+	if !genre || !faggot
+		msgBox no genre 
 	}
-catch 
-	{
-	sleep 50
-	}}
-   
-   TogglePause()  {
-      if (this.player.playState = 3)  ; Playing = 3
-         this.player.Controls.pause()
-      Else
-         this.player.Controls.play()
+return
+
+WMP_Refresh: 
+WMP := new RemoteWMP
+Media := WMP.player.currentMedia
+Controls := WMP.player.Controls
+return
+
+WMP_Refresh_2:
+sleep, 200
+goSub WMP_refresh
+sleep, 200
+newsong = % Media.sourceURL
+sleep, 200
+return
+
+WMP_Del: 
+process, Exist, WMPlayer.exe
+WMP2del := new RemoteWMP
+sleep, 300
+Media2del := WMP2del.player.currentMedia
+goSub WMP_next
+setTimer, DELETE_, -1000
+return
+
+DELETE_:   
+try 
+	File2Del= % Media2del.sourceURL
+catch
+	goSub WMP_Del
+FileRecycle, % File2Del ;trayTip, Windows Media Player, Deleted %File2Del%, 3, 1
+
+return
+
+WMP_add_Playlist:
+WMP := new RemoteWMP
+sleep, 20
+Media := WMP.player.currentMedia
+Controls := WMP.player.Controls
+sleep, 20
+FullPath:=Media.sourceurl
+sleep, 20
+if fileexist("New_Playlist.m3u") {
+	if !fileexist Playlist.m3u
+		filemove New_Playlist.m3u, Playlist.m3u
+	else
+		try {
+			if !fileexist(Playlist%p00f%.m3u)
+				filemove New_Playlist.m3u, Playlist%p00f%.m3u
+	} catch {
+			p00f:=p00f+1
+		}
+} else {
+	FileAppend %fullpath%`n, New_Playlist.m3u
+}
+return
+
+Clip_Commander:
+if (clipboard!=Monster_Clip) {
+	setTimer Clip_Commander, off
+	Menu, Tray, Icon, WMP.ico
+}
+return
+
+class RemoteWMP {
+	__New() {
+		static IID_IOleClientSite := "{00000118-0000-0000-C000-000000000046}"
+		, IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
+		process, Exist, WMPlayer.exe
+		if !ErrorLevel
+			trayTip, Windows Media Player, WMPlayer.exe is not running
+		if !this.player := ComObjCreate("WMPlayer.OCX.7")
+			trayTip, Windows Media Player, Failed to get WMPlayer.OCX.7 object
+		this.rms := IWMPRemoteMediaServices_CreateInstance()
+		this.ocs := ComObjQuery(this.rms, IID_IOleClientSite)
+		this.ole := ComObjQuery(this.player, IID_IOleObject)
+		DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", this.ocs)
+   }
+   	__Delete() {
+		if !this.player
+			return
+		DllCall(NumGet(NumGet(this.ole+0)+3*A_PtrSize), "Ptr", this.ole, "Ptr", 0)
+		for k, obj in [this.ole, this.ocs, this.rms]
+			ObjRelease(obj)
+		this.player := ""
+   }
+   	Jump(sec) {
+		try {
+				this.player.Controls.currentPosition += sec
+		}
+		catch 
+		{
+			sleep 50
+		}
+	}
+   	TogglePause() {
+		if (this.player.playState = 3)  ; Playing = 3
+			this.player.Controls.pause()
+		else
+			this.player.Controls.play()
    }
 }
 
-IWMPRemoteMediaServices_CreateInstance()
-{
+IWMPRemoteMediaServices_CreateInstance() {
    static vtblUnk, vtblRms, vtblIsp, vtblOls, vtblPtrs := 0, size := (A_PtrSize + 4)*4 + 4
-   if !VarSetCapacity(vtblUnk)  {
+   if !VarSetCapacity(vtblUnk) {
       extfuncs := ["QueryInterface", "AddRef", "Release"]
 
       VarSetCapacity(vtblUnk, extfuncs.Length()*A_PtrSize)
@@ -579,21 +652,19 @@ IWMPRemoteMediaServices_CreateInstance()
    if !vtblPtrs
       vtblPtrs := [&vtblUnk, &vtblRms, &vtblIsp, &vtblOls]
 
-   pObj := DllCall("GlobalAlloc", "UInt", 0, "Ptr", size, "Ptr")
+   pObj := DllCall("globalAlloc", "UInt", 0, "Ptr", size, "Ptr")
    for i, ptr in vtblPtrs {
       off := A_PtrSize*(i - 1) + 4*(i - 1)
       NumPut(ptr, pObj+0, off, "Ptr")
       NumPut(off, pObj+0, off + A_PtrSize, "UInt")
    }
    NumPut(1, pObj+0, size - 4, "UInt")
-
-   Return pObj
+   return pObj
 }
 
-IUnknown_QueryInterface(this_, riid, ppvObject)
-{
+IUnknown_QueryInterface(this_, riid, ppvObject) {
    static IID_IUnknown, IID_IWMPRemoteMediaServices, IID_IServiceProvider, IID_IOleClientSite
-   if !VarSetCapacity(IID_IUnknown)  {
+   if !VarSetCapacity(IID_IUnknown) {
       VarSetCapacity(IID_IUnknown, 16), VarSetCapacity(IID_IWMPRemoteMediaServices, 16), VarSetCapacity(IID_IServiceProvider, 16), VarSetCapacity(IID_IOleClientSite, 16)
       DllCall("ole32\CLSIDFromString", "WStr", "{00000000-0000-0000-C000-000000000046}", "Ptr", &IID_IUnknown)
       DllCall("ole32\CLSIDFromString", "WStr", "{CBB92747-741F-44FE-AB5B-F1A48F3B2A59}", "Ptr", &IID_IWMPRemoteMediaServices)
@@ -605,40 +676,39 @@ IUnknown_QueryInterface(this_, riid, ppvObject)
       off := NumGet(this_+0, A_PtrSize, "UInt")
       NumPut(this_ - off, ppvObject+0, "Ptr")
       IUnknown_AddRef(this_)
-      Return 0 ; S_OK
+      return 0 ; S_OK
    }
 
    if DllCall("ole32\IsEqualGUID", "Ptr", riid, "Ptr", &IID_IWMPRemoteMediaServices) {
       off := NumGet(this_+0, A_PtrSize, "UInt")
       NumPut((this_ - off)+(A_PtrSize + 4), ppvObject+0, "Ptr")
       IUnknown_AddRef(this_)
-      Return 0 ; S_OK
+      return 0 ; S_OK
    }
 
    if DllCall("ole32\IsEqualGUID", "Ptr", riid, "Ptr", &IID_IServiceProvider) {
       off := NumGet(this_+0, A_PtrSize, "UInt")
       NumPut((this_ - off)+((A_PtrSize + 4)*2), ppvObject+0, "Ptr")
       IUnknown_AddRef(this_)
-      Return 0 ; S_OK
+      return 0 ; S_OK
    }
 
-   if DllCall("ole32\IsEqualGUID", "Ptr", riid, "Ptr", &IID_IOleClientSite)  {
+   if DllCall("ole32\IsEqualGUID", "Ptr", riid, "Ptr", &IID_IOleClientSite) {
       off := NumGet(this_+0, A_PtrSize, "UInt")
       NumPut((this_ - off)+((A_PtrSize + 4)*3), ppvObject+0, "Ptr")
       IUnknown_AddRef(this_)
-      Return 0 ; S_OK
+      return 0 ; S_OK
    }
 
    NumPut(0, ppvObject+0, "Ptr")
-   Return 0x80004002 ; E_NOINTERFACE
+   return 0x80004002 ; E_NOINTERFACE
 }
 
-IUnknown_AddRef(this_)
-{
+IUnknown_AddRef(this_) {
    off := NumGet(this_+0, A_PtrSize, "UInt")
    iunk := this_-off
    NumPut((_refCount := NumGet(iunk+0, (A_PtrSize + 4)*4, "UInt") + 1), iunk+0, (A_PtrSize + 4)*4, "UInt")
-   Return _refCount
+   return _refCount
 }
 
 IUnknown_Release(this_) {
@@ -648,32 +718,28 @@ IUnknown_Release(this_) {
    if (_refCount > 0) {
       NumPut(--_refCount, iunk+0, (A_PtrSize + 4)*4, "UInt")
       if (_refCount == 0)
-         DllCall("GlobalFree", "Ptr", iunk, "Ptr")
+         DllCall("globalFree", "Ptr", iunk, "Ptr")
    }
-   Return _refCount
+   return _refCount
 }
 
-IWMPRemoteMediaServices_GetServiceType(this_, pbstrType)
-{
+IWMPRemoteMediaServices_GetServiceType(this_, pbstrType) {
    NumPut(DllCall("oleaut32\SysAllocString", "WStr", "Remote", "Ptr"), pbstrType+0, "Ptr")
-   Return 0
+   return 0
 }
 
-IWMPRemoteMediaServices_GetScriptableObject(this_, pbstrName, ppDispatch)
-{
-   Return 0x80004001
+IWMPRemoteMediaServices_GetScriptableObject(this_, pbstrName, ppDispatch) {
+   return 0x80004001
 }
 
-IWMPRemoteMediaServices_GetCustomUIMode(this_, pbstrFile)
-{
-   Return 0x80004001
+IWMPRemoteMediaServices_GetCustomUIMode(this_, pbstrFile) {
+   return 0x80004001
 }
 
-IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
-{
-   Return IUnknown_QueryInterface(this_, riid, ppvObject)
+IServiceProvider_QueryService(this_, guidService, riid, ppvObject) {
+   return IUnknown_QueryInterface(this_, riid, ppvObject)
 }
-Return
+return
 
 
 InvokeVerb(path, menu, validate=True) {
@@ -681,8 +747,8 @@ InvokeVerb(path, menu, validate=True) {
     if InStr(FileExist(path), "D") || InStr(path, "::{") {
         objFolder := objShell.NameSpace(path)   
         objFolderItem := objFolder.Self
-    } Else {
-        SplitPath, path, name, dir
+    } else {
+        splitPath, path, name, dir
         objFolder := objShell.NameSpace(dir)
         objFolderItem := objFolder.ParseName(name)
     }
@@ -694,27 +760,24 @@ InvokeVerb(path, menu, validate=True) {
             StringReplace, retMenu, retMenu, &       
             if (retMenu = menu) {
                 verb.DoIt
-                Return True
+                return True
             }
         }
-		Return False
-    } Else
+		return False
+    } else
         objFolderItem.InvokeVerbEx(Menu)
 } 
-Sleep, 2000
-Return
+sleep, 2000
+return
 
-AppVolume(app:="", device:="")
-{
-	Return new AppVolume(app, device)
+AppVolume(app:="", device:="") {
+	return new AppVolume(app, device)
 }
 
-class AppVolume
-{
+class AppVolume {
 	ISAVs := []
 	
-	__New(app:="", device:="")
-	{
+	__New(app:="", device:="") {
 		static IID_IASM2 := "{77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F}"
 		, IID_IASC2 := "{BFB7FF88-7239-4FC9-8FA2-07C950BE9C6D}"
 		, IID_ISAV := "{87CE5498-68D6-44E5-9215-6DA47EF883D8}"
@@ -738,8 +801,8 @@ class AppVolume
 			ObjRelease(pIASC)
 			
 			; If its PID matches save its ISimpleAudioVolume pointer
-			VA_IAudioSessionControl2_GetProcessID(pIASC2, PID)
-			if (PID == app || this.GetProcessName(PID) == app)
+			VA_IAudioSessionControl2_GetprocessID(pIASC2, PID)
+			if (PID == app || this.GetprocessName(PID) == app)
 				this.ISAVs.Push(ComObjQuery(pIASC2, IID_ISAV))
 			
 			ObjRelease(pIASC2)
@@ -749,106 +812,235 @@ class AppVolume
 		ObjRelease(pIASE)
 	}
 	
-	__Delete()
-	{
+	__Delete() {
 		for k, pISAV in this.ISAVs
 			ObjRelease(pISAV)
 	}
 	
-	AdjustVolume(Amount)
-	{
-		Return this.SetVolume(this.GetVolume() + Amount)
+	AdjustVolume(Amount) {
+		return this.SetVolume(this.GetVolume() + Amount)
 	}
 	
-	GetVolume()
-	{
+	GetVolume() {
 		for k, pISAV in this.ISAVs
 		{
 			VA_ISimpleAudioVolume_GetMasterVolume(pISAV, fLevel)
-			Return fLevel * 100
+			return fLevel * 100
 		}
 	}
 	
-	SetVolume(level)
-	{
+	SetVolume(level) {
 		level := level>100 ? 100 : level<0 ? 0 : level ; Limit to range 0-100
 		for k, pISAV in this.ISAVs
 			VA_ISimpleAudioVolume_SetMasterVolume(pISAV, level / 100)
-		Return level
+		return level
 	}
 	
-	GetMute()
-	{
+	GetMute() {
 		for k, pISAV in this.ISAVs
 		{
 			VA_ISimpleAudioVolume_GetMute(pISAV, bMute)
-			Return bMute
+			return bMute
 		}
 	}
 	
-	SetMute(bMute)
-	{
+	SetMute(bMute) {
 		for k, pISAV in this.ISAVs
 			VA_ISimpleAudioVolume_SetMute(pISAV, bMute)
-		Return bMute
+		return bMute
 	}
 	
-	ToggleMute()
-	{
-		Return this.SetMute(!this.GetMute())
+	ToggleMute() {
+		return this.SetMute(!this.GetMute())
 	}
 	
-	GetProcessName(PID) {
-		hProcess := DllCall("OpenProcess"
-		, "UInt", 0x1000 ; DWORD dwDesiredAccess (PROCESS_QUERY_LIMITED_INFORMATION)
-		, "UInt", False  ; BOOL  bInheritHandle
-		, "UInt", PID    ; DWORD dwProcessId
-		, "UPtr")
+	GetprocessName(PID) {
+		hprocess := DllCall("Openprocess"
+									, "UInt", 0x1000 ; DWORD dwDesiredAccess (process_QUERY_LIMITED_INFORMATION)
+									, "UInt", False  ; BOOL  bInheritHandle
+									, "UInt", PID    ; DWORD dwprocessId
+									, "UPtr")
 		dwSize := VarSetCapacity(strExeName, 512 * A_IsUnicode, 0) // A_IsUnicode
-		DllCall("QueryFullProcessImageName"
-		, "UPtr", hProcess  ; HANDLE hProcess
-		, "UInt", 0         ; DWORD  dwFlags
-		, "Str", strExeName ; LPSTR  lpExeName
-		, "UInt*", dwSize   ; PDWORD lpdwSize
-		, "UInt")
-		DllCall("CloseHandle", "UPtr", hProcess, "UInt")
-		SplitPath, strExeName, strExeName
-		Return strExeName
+		DllCall(	"QueryFullprocessImageName"
+					,"UPtr", hprocess  ; HANDLE hprocess
+					,"UInt", 0         ; DWORD  dwFlags
+					,"Str", strExeName ; LPSTR  lpExeName
+					,"UInt*", dwSize   ; PDWORD lpdwSize
+					,"UInt")
+		DllCall("CloseHandle", "UPtr", hprocess, "UInt")
+		splitPath, strExeName, strExeName
+		return strExeName
 	}
 }
 
-; --- Vista Audio Additions ---
-;
+; --- V A Additions ---
 ; ISimpleAudioVolume : {87CE5498-68D6-44E5-9215-6DA47EF883D8}
-;
+
 VA_ISimpleAudioVolume_SetMasterVolume(this, ByRef fLevel, GuidEventContext="") {
-	Return DllCall(NumGet(NumGet(this+0)+3*A_PtrSize), "ptr", this, "float", fLevel, "ptr", VA_GUID(GuidEventContext))
+	return DllCall(NumGet(NumGet(this+0)+3*A_PtrSize), "ptr", this, "float", fLevel, "ptr", VA_GUID(GuidEventContext))
 }
 VA_ISimpleAudioVolume_GetMasterVolume(this, ByRef fLevel) {
-	Return DllCall(NumGet(NumGet(this+0)+4*A_PtrSize), "ptr", this, "float*", fLevel)
+	return DllCall(NumGet(NumGet(this+0)+4*A_PtrSize), "ptr", this, "float*", fLevel)
 }
 VA_ISimpleAudioVolume_SetMute(this, ByRef Muted, GuidEventContext="") {
-	Return DllCall(NumGet(NumGet(this+0)+5*A_PtrSize), "ptr", this, "int", Muted, "ptr", VA_GUID(GuidEventContext))
+	return DllCall(NumGet(NumGet(this+0)+5*A_PtrSize), "ptr", this, "int", Muted, "ptr", VA_GUID(GuidEventContext))
 }
 VA_ISimpleAudioVolume_GetMute(this, ByRef Muted) {
-	Return DllCall(NumGet(NumGet(this+0)+6*A_PtrSize), "ptr", this, "int*", Muted)
+	return DllCall(NumGet(NumGet(this+0)+6*A_PtrSize), "ptr", this, "int*", Muted)
 }
 
-
+Open_script_folder:	
+runwait %COMSPEC% /C explorer.exe /select`, "%a_scriptFullPath%",, hide
+sleep %S%
+sendInput {F5}
+return
 
 /* 
+<^>!C::		;altGr x  SAMPLE START / END. 
+WMP := new RemoteWMP
+sleep, 20
+Media := WMP.player.currentMedia
+Controls := WMP.player.Controls
+sleep, 20
+FullPath:=Media.sourceurl
+splitPath, FullPath , OutFileName, OutDir, OutExtension, OutNameNoExt, OutDrive
+if !Secs2Sample_Start {
+	if Secs2Sample_Start:=round(controls.currentPosition)
+		Sample_start_min:= Floor(Secs2Sample_Start/60)
+	else {
+		Secs2Sample_Start:="0"
+		Sample_start_min:= Floor(Secs2Sample_Start/60)
+	}
+	if Sample_start_Hr:=Floor(Sample_start_min/60)
+		Sample_start_min:=Sample_start_min-(Sample_start_Hr*60)
+	Sample_start_Sec:=Secs2Sample_Start-(Sample_start_min*60)
+} else {
+	Secs2Sample_End:=round(controls.currentPosition)
+	Sample_End_min:= Floor(Secs2Sample_End/60)
+	if Sample_End_Hr:=Floor(Sample_End_min/60)
+		Sample_End_min:=Sample_End_min-(Sample_End_Hr*60)
+	Sample_End_Sec:=Secs2Sample_End-(Sample_End_min*60)
+	Start_Time=%Sample_start_Hr%:%Sample_start_min%:%Sample_start_Sec%
+	End_Time=%Sample_End_Hr%:%Sample_End_min%:%Sample_End_Sec%
+	gui, GuiName:new , , Question
+	Gui +HwndQuestionHwnd
+	gui, Add, Text,, SAMPLE 
+	gui, Add, CheckBox, Checked center vExtract, Extract
+	gui, Add, Text,, TRIM 
+	gui, Add, CheckBox, center vTrim, Delete	; gui, Add, CheckBox, center vReplace, Replace
+	gui, Add, Button, center Default gPerform w80, OK
+	gui, Add, Button, center w80 gCancel, Cancel
+	gui, Show , Center, Question
+	return
+	
+Cancel:
+gui, Destroy
+Secs2Sample_Start:=
+Exit
 
+Perform:
+gui, Submit
+gui, Destroy 
+Secs2Sample_Start:=
+If Extract
+	process_Action:="-t", process_Type:="Extracted"
+If Trim 
+	process_Action:="-to", process_Type:="Trimmed"
+Output_Prefix=%OutNameNoExt% - %process_Type%
+Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
+global needL := "i)(?:Extracted)(?:[ ])[0-9]"
+File_Numbering:
+if (n:=fileexist(Output_Filename_Full)) {
+	n := 1, RegXPos = 1, Match :=
+	DEAD_NIG=%Output_Prefix%
+	while RegXPos := regexmatch(DEAD_NIG, needL, Match, RegXPos) {
+		cunt := Match
+		RegXPos = 666
+	}
+	if !cunt {
+		CUNT:=1
+	} else {
+		cunt := cunt + 1
+	}
+	Output_Filename_Full=%OutDir%\%Output_Prefix% %CUNT%.%OutExtension%
+} else
+		Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
+	if FileExist(Output_Filename_Full) { ; Check_Folder
+		splitPath, Output_Filename_Full , , , , Output_Prefix
+		goSub File_Numbering
+}
+
+if Extract && Trim 
+{
+	Output_Filename_Full=%OutDir%\%OutNameNoExt% - Extracted.%OutExtension%
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -t %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
+	IF DICKS:=INSTR(OutNameNoExt, "Trimmed")
+		Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
+	else
+		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -to %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
+	InvokeVerb(Output_Filename_Full, "Cut", True)
+	return
+}
+If Trim {
+	SecsDuration:=round(media.getItemInfo("Duration"))
+	Sample_Duration_min:= Floor(SecsDuration/60)
+	if Sample_Duration_Hr:=Floor(Sample_Duration_min/60)
+		Sample_Duration_min:=Sample_Duration_min-(Sample_Duration_Hr*60)
+	Sample_Duration_Sec:=SecsDuration-(Sample_Duration_min*60)
+	Output_Duration=%Sample_Duration_Hr%:%Sample_Duration_min%:%Sample_Duration_Sec%
+	FirstHalf=%OutDir%\%OutNameNoExt% - Trimmed first half.%OutExtension%
+	SecondHalf=%OutDir%\%OutNameNoExt% - Trimmed 2nd half.%OutExtension%
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss 0:0:0 -to %Start_Time% -c:v copy -c:a copy "%FirstHalf%",,Hidden
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %End_Time% -to %Output_Duration% -c:v copy -c:a copy "%SecondHalf%",,Hidden
+	FileAppend , file '%FirstHalf%'`n, %Con_Cat_N_8%
+	FileAppend , file '%SecondHalf%'`n, %Con_Cat_N_8%
+	sleep 1500
+	IF DICKS:=INSTR(OutNameNoExt, "Trimmed")
+		Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
+	else
+		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
+	runWait, %comspec% /c ffmpeg -y -f concat -safe 0 -i "%Con_Cat_N_8%" -c copy "%Output_Filename_Full%",,Hidden
+	FileDelete, %FirstHalf%
+	FileDelete, %SecondHalf%
+	FileDelete, %Con_Cat_N_8%
+	FileGetTime, Old_D8 , %FullPath%, m
+	FileSetTime, Old_D8 , %Output_Filename_Full%, m	;FileRecycle, %FullPath%
+
+	Bugga:
+	sleep 500
+	if !fileExist(FullPath)
+		FileMove, Output_Filename_Full, FullPath
+	else 
+		goto bugga
+	Exit
+} else {
+	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% %process_Action% %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
+	if InvokeVerb(Output_Filename_Full, "Cut", True)
+		{
+		Secs2Sample_End:="",Secs2Sample_Start:="",Output_Filename_Full:=""
+		Exit
+		}
+	return
+	}
+Escape::gui, Destroy
+return
+}
+return
+ */
+
+/* 
 ;OTHER SHIT::::::::::::
 
 
-; MsgBox, % Media.sourceURL
-; MsgBox, % Controls.currentPosition . "`n"
+; msgBox, % Media.sourceURL
+; msgBox, % Controls.currentPosition . "`n"
         ; . Controls.currentPositionString
-; MsgBox, % Media.getItemInfo("WM/AlbumTitle")
+; msgBox, % Media.getItemInfo("WM/AlbumTitle")
 ; All attribute names you can get with Media.getItemInfo(attributeName)
 ; Loop % Media.attributeCount
    ; attributes .= Media.getAttributeName(A_Index - 1) . "`r`n"
-; MsgBox, % Clipboard := attributes
+; msgBox, % clipboard := attributes
 
 
 // Play States
@@ -909,7 +1101,7 @@ WParams:
 
 18777 - "Rip" tab
 
-18779 - Open "Properties" dialog RC=FAIL. Use 32779 or PostMessage
+18779 - Open "Properties" dialog RC=FAIL. Use 32779 or postMessage
 18780 - View Full Mode
 18781 - View Compact Mode
 18782 - Full screen (toggle)
@@ -940,7 +1132,7 @@ WParams:
 18817 - Volume: Mute (toggle)
 
 18824 - View Privacy Statement Link to external web page
-18825 - Open "Options" dialog RC=FAIL. Use 32825 or PostMessage
+18825 - Open "Options" dialog RC=FAIL. Use 32825 or postMessage
 18826 - Open "Windows Media Player Help"
 
 18834 - Play Speed: Fast
@@ -952,20 +1144,20 @@ WParams:
 
 18846 - Download: Visualizations Link to external web page
 
-18849 - Open "Add to Library by Searching Computer" dialog RC=FAIL. Use 32849 or PostMessage
-18850 - Open "Monitory Folders" dialog RC=FAIL. Use 32850 or PostMessage
+18849 - Open "Add to Library by Searching Computer" dialog RC=FAIL. Use 32849 or postMessage
+18850 - Open "Monitory Folders" dialog RC=FAIL. Use 32850 or postMessage
 
-18861 - Open "File Open" dialog RC=FAIL. Use 32861 or PostMessage
-18862 - Open "Open URL" dialog RC=FAIL. Use 32862 or PostMessage
+18861 - Open "File Open" dialog RC=FAIL. Use 32861 or postMessage
+18862 - Open "Open URL" dialog RC=FAIL. Use 32862 or postMessage
 
-18871 - Open "Manage Licenses" dialog RC=FAIL. Use 32871 or PostMessage
-18872 - Open "Open URL" dialog (Same as 18862?) RC=FAIL. Use 32862 or PostMessage
+18871 - Open "Manage Licenses" dialog RC=FAIL. Use 32871 or postMessage
+18872 - Open "Open URL" dialog (Same as 18862?) RC=FAIL. Use 32862 or postMessage
 
 Codes 18880 to ????? causes WMP to crash. RC=FAIL or
-RC=0. Haven't tried PostMessage
+RC=0. Haven't tried postMessage
 
 
-18889 - Save "Now Playing List" As RC=FAIL. Use ????? or PostMessage
+18889 - Save "Now Playing List" As RC=FAIL. Use ????? or postMessage
 
 18904 - Work Offline (toggle)
 
@@ -977,7 +1169,7 @@ RC=0. Haven't tried PostMessage
 
 19102 - Print Label Not sure when this is available
 
-19011 - Open "Save As" dialog RC=FAIL. Use ????? or PostMessage
+19011 - Open "Save As" dialog RC=FAIL. Use ????? or postMessage
 
 19013 - Save "Now Playling List"
 19014 - New "Now Playing List"
@@ -1003,11 +1195,11 @@ RC=0. Haven't tried PostMessage
 19498 - Open Plug-ins Options dialog
 
 19500 - DVD: Root Menu
-19501 - DVD: Title Menu Returns 1 if menu is not available (?)
+19501 - DVD: Title Menu returns 1 if menu is not available (?)
 19502 - DVD: Close Menu (Resume)
 19503 - DVD: Back
 
-19572 - Update DVD Information RC=FAIL. Use ????? or PostMessage
+19572 - Update DVD Information RC=FAIL. Use ????? or postMessage
 
 19681 - DVD, VCD or CD Audio
 
@@ -1017,7 +1209,7 @@ RC=0. Haven't tried PostMessage
 19724 - Hide Taskbar (toggle)
 
 19998 - Download: Plug-ins Link to external web page
-19999 - Open Plug-ins Options dialog RC=FAIL. Use 19498 or PostMessage
+19999 - Open Plug-ins Options dialog RC=FAIL. Use 19498 or postMessage
 
 26000 - Services List
 
@@ -1079,9 +1271,9 @@ RC=0. Haven't tried PostMessage
 32872 - Open "Open URL" dialog (Same as 32862?)
 
 Codes 32880 to ????? causes WMP to crash. RC=FAIL or
-RC=0. Haven't tried PostMessage.
+RC=0. Haven't tried postMessage.
 
-57601 - Open "File Open" dialog RC=FAIL. Use 32861 or PostMessage
+57601 - Open "File Open" dialog RC=FAIL. Use 32861 or postMessage
 57602 - File Close
 
 57665 - Exit
