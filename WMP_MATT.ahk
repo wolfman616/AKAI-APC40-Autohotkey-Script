@@ -221,11 +221,11 @@ if n:=fileexist(Output_Filename_Full)
 } 
 else
 	Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
-	if FileExist(Output_Filename_Full) { ; Check_Folder
-		splitPath, Output_Filename_Full , , , , Output_Prefix
-		goto File_Numbering
-		return
-	}
+if FileExist(Output_Filename_Full) { ; Check_Folder
+	splitPath, Output_Filename_Full , , , , Output_Prefix
+	goto File_Numbering
+	return
+}
 Output_Prefix=%Output_Prefix% %File_Num%
 
 if Extract && Trim 
