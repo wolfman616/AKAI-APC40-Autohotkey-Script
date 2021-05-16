@@ -5,34 +5,57 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #SingleInstance force
 #Include VA.ahk
 #inputlevel 1
-Menu, Tray, Icon, C:\ICON\32\akaiapc_32.ico
-if A_OSVersion in WIN_NT4,WIN_95,WIN_98,WIN_ME ; if not xp or 2000 quit
-{
-MsgBox Error Win2k/XP or later minimum.
-ExitApp
-}
-
-
+01=
+	menu, tray, add, Toggle Midi Channels, Toggle_midi_In_out,
 
 readini() ; load previous midi settings
+
+if A_OSVersion in WIN_NT4,WIN_95,WIN_98,WIN_ME ; if not xp or 2000 quit
+{
+	MsgBox Error Win2k/XP or later minimum.
+	ExitApp
+}
+
+;SYSTRAY MENU 
+;==============================================================================
+; Menu, Tray, NoStandard
+Menu, Tray, Icon, akaiapc_32.ico
+;==============================================================================
+; Menu, submenu1, Add, MIDI IN 0 / OUT 1, 
+; if 01
+; Menu, submenu1, Check, MIDI IN 0 / OUT 1
+;==============================================================================
+
+;===============Enabling==Menu==&=Re-add= Standard=items=below=======
+; Menu, Tray, Add, Settings, :submenu1
+; Menu, Tray, Standard
+
+Menu, Tray, noStandard
+Menu, Tray, Add, Open script folder, Open_script_folder,
+Menu, Tray, Standard
+
+
+
+
 gosub, MidiPortRefresh ; used to refresh the input and output port lists - see label below
 port_test(numports,numports2) ; test the ports - check for valid ports?
 gosub, midiin_go ; opens the midi input port listening routine
 gosub, midiout ; opens the midi out port
 
 SendLevel 99
-Send, #^r
+;Send, #^r
 
 ; =============== set variables you use in MidiRules section
 nn=1
-
+fun=42
 timeoutreload := 100
 cc_msg = 73,74 ; ++++++++++++++++ you might want to add other vars that load in auto execute section This example goes with
 channel = 1 ; default channel =1
 ccnum = 7 ; 7 is volume
-CFFVol = 10
+BrowserVol = 25
+cack=10
 WMPVol := 10
-Master_Volume = 0
+Master_Volume = 10
 volVal = 0 ; Default zero for volume
 volDelta = 10 ; Amount to change volume
 NoteVel := 127 ; Colour and Luminosity
@@ -40,7 +63,7 @@ Sbyte := 144
 Mnote= 0
 Bank:= 0 ; bank key un-lit /  Bind shift disabled
 yFaderGroup =7
-xFaderB1=66
+xFadeB1=66
 yMaster =14
 XFader = 15
 FaderSByte =176
@@ -100,36 +123,35 @@ iniread, bounceincdelay, z.ini, Bounce, bounceincdelay, 195
 
 
 Ascending:=1
-bouncefade:=131
+bouncefade:=129
 ; bounceincdelay:= 195
 bounceloc=1
 bounceoffloc=1
-bounceofflocreal:=bounceoffloc+ 31 ;32 -39 top row
+;bounceofflocreal:=bounceoffloc+ 31 ;32 -39 top row
 bounceendpause= 300
 bouncing=1
 updatelights:=0
 Brightne55:= Format("100", int*)
 n :=1
+;Light Array not yet implemented
 lights:= [] 
-twonk:=
 lights[1] := "xSByteFlashPause" 
 lights[2] := "xSByteFadePlay"
 lights[3] := "xSByteONNormal"
 lights[4] := "B2PausedColor"
 lights[5] := "B2UnPausedColor"
-;oldsong= placeholder
-AppVolume("firefox.exe").getmute()
+AppVolume("firefox.exe").getmute(twatty) ;AppVolume("firefox.exe").ToggleMute()
+AppVolume("firefox.exe").getvolume(awatty2)
 cffmute=1
 
 
-;AppVolume("firefox.exe").ToggleMute()
+
  
 ;Array := {1: ValueA, KeyB: ValueB, ..., KeyZ: ValueZ}
 OnExit("Parp")
 
 
-Parp()
-{
+Parp() {
 iniwrite, %BounceCol% , z.ini , Colours, bouncecol
 sleep 200
 iniwrite, %B2PausedColor%  , z.ini , Colours, pausedcolour
@@ -143,174 +165,196 @@ sleep 200
 tooltip,
 }
 
-
 return ; DO NOT REMOVE
 
 MidiRules: ; Tip is: ++++++ for where you might want to add
 ; avoid these !!!!!!!!!!
 
-Byte2_100:=round(Byte2 / 1.23)
 
-if  (byte1=103) && (statusbyte=144)  ; APC BANK BUTTON LIT/  BANK MODEON
-{
-Bank := 1 
 
-Gui, Add, Picture, w784 h467 BackgroundTrans, apc40mk2.png
-;gui, add, picture, apc40mk2.png,
-Gui, Show,x400 y400 w790 h475, MIDI IN / OUT, 
-tooltip, 
+if((byte1=103) && (statusbyte=144))  { ; APC BANK BUTTON LIT/  BANK MODEON
+	Bank := 1 
+	Gui, Add, Picture, w784 h467 BackgroundTrans, apc40mk2.png
+	;gui, add, picture, apc40mk2.png,
+	Gui, Show,x400 y400 w790 h475, MIDI IN / OUT, 
+	tooltip, 
 }
 
-if  (byte1=103) && (statusbyte=128) ;APC BANK BUTTON UNLIT/OFF
-{
-Bank := 0 
-Gui, Show, , SACK
-Gui, Hide
+if( (byte1=103) && (statusbyte=128)) { ;APC BANK BUTTON UNLIT/OFF
+	Bank := 0 
+	Gui, Show, , SACK
+	Gui, Hide
 }
 
-if  (byte1=yMaster) && (statusbyte=FaderSByte) ;  APC MASTER FADER   
-{
-Master_Volume := round(Byte2 / 1.23)
-soundset,  Master_Volume    ;
+
+If((byte1=yMaster) && (statusbyte=FaderSByte)) { ;  APC MASTER FADER   
+	SoundGet, WankingRaw
+	UpperLim := WankingRaw + 10
+	Master_VolumeNewRaw :=  Byte2 / 1.23 
+	if Master_VolumeNewRaw  between 0 and %UpperLim%
+	{
+		Master_VolumeNew := Round(Master_VolumeNewRaw)
+		Soundset,  Master_VolumeNew    ;
+	} Else
+		Traytip,  Main Volume, Attempted Gain diference of +10 Detected 	; add a mitigation
+}
+if((byte1=yFaderGroup) && (statusbyte=180)) { 			;  APC FADER 5
+tooltip xbxbxcb
+	gameraw:=AppVolume("Discord.exe")
+UpperLim := gameraw + 10
+	gameNEWRAW := Byte2 / 1.23
+if gameNEWRAW between 0 and %UpperLim%
+	{
+		gameNEW:=Round(gameNEWRAW)
+		AppVolume("RobloxPlayerBeta.exe").setVolume(gameNEW)
+	} Else
+		Traytip,  game Volume, Attempted Gain diference of +10 Detected		; add a mitigation
 }
 
-if  (byte1=yFaderGroup) && (statusbyte=182) ;  APC FADER 7   
-{
-CFFVol:= round(Byte2 / 1.23)
-AppVolume("chrome.exe").setVolume(CFFVol)
-AppVolume("firefox.exe").setVolume(CFFVol)
+if((byte1=yFaderGroup) && (statusbyte=181)) { 				;  APC FADER 6
+
+	vlcraw:=AppVolume("VLC.exe")
+	UpperLim := vlcraw + 10
+	VLCNEWRAW := Byte2 / 1.23
+	if VLCNEWRAW between 0 and %UpperLim%
+	{
+		VLCNEW:=Round(VLCNEWRAW)
+		AppVolume("VLC.exe").setVolume(VLCNEW)
+	} Else
+		Traytip,  VLC Volume, Attempted Gain diference of +10 Detected		; add a mitigation
 }
 
-if  (byte1=yFaderGroup) && (statusbyte=YfCh8) ;  APC FADER 8   
-{
-WMPVol:= Byte2_100
-AppVolume("wmplayer.exe").setVolume(WMPVol)
+if((byte1=yFaderGroup) && (statusbyte=182)) { 				;  APC FADER 7   
+	BrowserRAW1:=AppVolume("chrome.exe").GetVolume()
+	BrowserRAW2:=AppVolume("firefox.exe").GetVolume()
+	if BrowserRAW1 {
+		if UpperLim1<UpperLim2
+			UpperLim := UpperLim1  + 20
+	} Else 
+		UpperLim := BrowserRAW2  + 20
+	BrowserNEWRAW := Byte2 / 1.23
+	if BrowserNEWRAW between 0 and %UpperLim% 
+	{
+		BrowserNEW:=Round(BrowserNEWRAW)
+		AppVolume("chrome.exe").setVolume(BrowserNEW)
+		AppVolume("firefox.exe").setVolume(BrowserNEW)
+	} Else
+		Traytip,  Browser Volume, Attempted Gain diference of +10 Detected		; add a mitigation
 }
 
-if  (byte1=13) && (statusbyte=176) && (byte2= 1) && (editch8=1)  ;  APC  Tempo Knob
-{
-lightsvar:= % lights[n]
-tooltip, editing %lightsvar% use knob below :)
-n:=n+1
-return
+if((byte1=yFaderGroup) && (statusbyte=YfCh8)) {		;  APC FADER 8   
+	WMPVol:=round(Byte2 / 1.23)
+	wmpraw:=AppVolume("wmplayer.exe").GetVolume()
+	UpperLim := wmpraw  + 20
+	wmprawnew := Byte2 / 1.23
+	if wmprawnew between 0 and %UpperLim%
+	{
+		wmpNEW:=Round(wmprawnew)
+		AppVolume("wmplayer.exe").setVolume(wmpNEW)
+	} Else
+		Traytip,  Browser Volume, Attempted Gain diference of +10 Detected		; add a mitigation
 }
 
-if  (byte1=13) && (statusbyte=176) && (byte2= 127) && (editch8=1) ;  APC  Tempo Knob
-{
-Brightne55 := Brightne55 - 10
-SetDisplayBrightness(%Brightne55%)
-tooltip brightness -1`n%Brightne55%
+if((byte1=13) && (statusbyte=176) && (byte2= 1) && (editch8=1)) { ;  APC  Tempo Knob
+	lightsvar:= % lights[n]
+	tooltip, editing %lightsvar% use knob below :)
+	n:=n+1
+	return
 }
 
-if  (byte1=xCh8) && (Byte2=127) && (statusbyte=144) && (Bank=1)
-{
-tooltip, Edit me
-editch8=1
-return
+if((byte1=13) && (statusbyte=176) && (byte2= 127) && (editch8=1)) { ;   APC  Tempo Knob
+	Brightne55 := Brightne55 - 10
+	SetDisplayBrightness(%Brightne55%)
+	tooltip brightness -1`n%Brightne55%
 }
 
-if  (byte1=xCh8) && (Byte2=127) && (statusbyte=144) && (Bank=1) && (editch8=1)
-{
-tooltip, % n
-return
+if((byte1=xCh8) && (Byte2=127) && (statusbyte=144) && (Bank=1)) {
+	tooltip, Edit me
+	editch8=1
+	return
 }
 
-if  (byte1=19) && (StatusByte=184) && (editch8=1)
-{
-%lightsvar% := %Byte2%
-tooltip %lightsvar% = %Byte2%
-gosub update_lights
-return
+if((byte1=xCh8) && (Byte2=127) && (statusbyte=144) && (Bank=1) && (editch8=1)) {
+	tooltip, % n
+	return
 }
 
-if (byte1=52) && (byte2=127) && (StatusByte=150) && (CFFMute=1)
-{
-AppVolume("firefox.exe").GetVolume()
-AppVolume("chrome.exe").ToggleMute()
-AppVolume("firefox.exe").ToggleMute()
-CFFMute:=2 
-AppVolume("firefox.exe").getmute()
-tooltip, %bmute% a %fLevel%
-gosub update_lights
-return
+if((byte1=19) && (StatusByte=184) && (editch8=1)) {
+	%lightsvar% := %Byte2%
+	tooltip %lightsvar% = %Byte2%
+	gosub update_lights
+	return
 }
 
-if (byte1=52) && (byte2=127) && (StatusByte=150) && (CFFMute=2)
-{
-AppVolume("chrome.exe").ToggleMute()
-AppVolume("firefox.exe").ToggleMute()
-CFFMute=1
-AppVolume("firefox.exe").getmute()
-tooltip, %bmute% b
-gosub update_lights
-return
+if((byte1=52) && (byte2=127) && (StatusByte=150) && (CFFMute=1)) {
+	AppVolume("firefox.exe").GetVolume()
+	AppVolume("chrome.exe").ToggleMute()
+	AppVolume("firefox.exe").ToggleMute()
+	CFFMute:=2 
+	AppVolume("firefox.exe").getmute()
+	tooltip, %bmute% a %fLevel%
+	gosub update_lights
+	return
 }
 
-if  (byte1=yMaster) && (statusbyte=FaderSByte) ;  APC MASTER FADER   
-{
-Master_Volume := round(Byte2 / 1.23)
-soundset,  Master_Volume    ;
+if((byte1=52) && (byte2=127) && (StatusByte=150) && (CFFMute=2)) {
+	AppVolume("chrome.exe").ToggleMute()
+	AppVolume("firefox.exe").ToggleMute()
+	CFFMute=1
+	AppVolume("firefox.exe").getmute()
+	tooltip, %bmute% b
+	gosub update_lights
+	return
 }
 
-if  (byte1=94) && (Byte2=127) && (statusbyte=144) ;  BANK SELECT UP
-{
-Process, Exist, slsk2.exe
-     if !ErrorLevel
+if((byte1=94) && (Byte2=127) && (statusbyte=144)) { ;  BANK SELECT UP
+	Process, Exist, slsk2.exe
+	if !ErrorLevel
 		tooltip, error slsk not open
 	else
 		run WMP_SLSK.ahk
 }
-
 ;if  (byte1=94) && (Byte2=127) && (statusbyte=144) && (Bankmode=1)
-
-
-
-if  (byte1=96) && (statusbyte=144) ;  BANK SELECT RIGHT
-{
-Process, Exist, wmplayer.exe
-gosub WMP_NEXT
-return
+if((byte1=96) && (statusbyte=144)) { ;  BANK SELECT RIGHT
+	;Process, Exist, wmplayer.exe
+	gosub WMP_NEXT
+	return
 }
 
-
-
-if  (byte1=97) && (statusbyte=144) ;  BANK SELECT LEFT
-{
-GoSub WMP_Prev
-Return
+if((byte1=97) && (statusbyte=144)) { ;  BANK SELECT LEFT
+	GoSub WMP_Prev
+	Return
 }
 
-if  (byte1=95) && (statusbyte=144) ;  BANK SELECT DOWN
-{
-run wmp_cut.ahk ;cut mp3 to clipboard
+if((byte1=95) && (statusbyte=144)) { ;  BANK SELECT DOWN
+	run wmp_cut.ahk ;cut mp3 to clipboard
 }
 
-if (statusbyte=151) && (Byte2=127) && (Bank =0) 
-{
-Process, Exist, wmplayer.exe
-{
-ControlSend , ,^p, Windows Media Player
-sleep, 100
-gosub, WMP_CHECK
-gosub update_lights
-}}
+if (statusbyte=151) && (Byte2=127) && (Bank =0) {
+	if (Process, Exist, "wmplayer.exe") {
+		ControlSend , ,^p, Windows Media Player
+		sleep, 100
+		gosub, WMP_CHECK
+		gosub update_lights
+	}
+}
 
 if (statusbyte=151) && (Byte2=127) && (Bank =1) ; DELETE currently playing file WMP
 {
-gosub WMP_Del
+	gosub WMP_Del
 }
 
 
 if (updatelights=1)
 {
-;tooltip 4546463636
-updatelights:=0
+	;tooltip 4546463636
+	updatelights:=0
 }
 
 if (statusbyte=FaderSByte) && (Byte1=55)
 {
-Byte2_50:=round((Byte2 / 123)+1)
-wmp.SetRate(Byte2_50)
+	Byte2_50:=round((Byte2 / 123)+1)
+	wmp.SetRate(Byte2_50)
 }
 /* 
 if (byte1=16) && (StatusByte in %yfads%) && (bank=1) ; finder
@@ -327,22 +371,21 @@ bowcol=1
 
 
 
-if (byte1=16) && (StatusByte=184) && (bank=1) ; AEROGLASS TRANS
-{
-sendmessage, 0x0422, , %Byte2_100%, msctls_trackbar327, Aero Glass for Win8.x+
-return
+if((byte1=16) && (StatusByte=184) && (bank=1)) { ; AEROGLASS TRANS
+	sendmessage, 0x0422, , round(Byte2 / 1.23), msctls_trackbar327, Aero Glass for Win8.x+
+	return
 }
 
 if (byte1=17) && (StatusByte=184) && (bank=1) ; AEROGLASS REFLECTION
 {
-sendmessage, 0x0422, , %Byte2_100%, msctls_trackbar321, Aero Glass for Win8.x+
-return
+	sendmessage, 0x0422, , round(Byte2 / 1.23), msctls_trackbar321, Aero Glass for Win8.x+
+	return
 }
 
 if (byte1=18) && (StatusByte=184) && (bank=1) ; AEROGLASS REFLECTION
 {
-sendmessage, 0x0422, , %Byte2_100%, msctls_trackbar322, Aero Glass for Win8.x+
-return
+	sendmessage, 0x0422, , round(Byte2 / 1.23), msctls_trackbar322, Aero Glass for Win8.x+
+	return
 }
 
 
@@ -350,196 +393,224 @@ return
 
 if (statusbyte=XfCh8) && (Byte2=1)
 {
-xFadeLeftOld:=xFadeLeft
-xFadeLeft=8 
-if xfaderight=8
-xFadeRight:=xFadeRightOld
+	ASSHOLE:=1
+	xFadeLeftOld:=xFadeLeft
+	xFadeLeft=8 
+	if xfaderight=8
+	xFadeRight:=xFadeRightOld
 }
 
 if (statusbyte=XfCh7) && (Byte2=1)
 {
-xFadeLeftOld:=xFadeLeft
-xFadeLeft=7
-if xfaderight=7
-xFadeRight:=xFadeRightOld
+	xFadeLeftOld:=xFadeLeft
+	xFadeLeft=7
+	if xfaderight=7
+	xFadeRight:=xFadeRightOld
 }
 
 
 if (statusbyte=XfCh6) && (Byte2=1)
 {
-xFadeLeftOld:=xFadeLeft
-xFadeLeft=6
-if xfaderight=6
-xFadeRight:=xFadeRightOld
+	xFadeLeftOld:=xFadeLeft
+	xFadeLeft=6
+	if xfaderight=6
+	xFadeRight:=xFadeRightOld
 }
 
 
 if (statusbyte=XfCh5) && (Byte2=1)
-xfadeleft=5 
-
+	xfadeleft=5 
+else
 if (statusbyte=XfCh4) && (Byte2=1)
-xfadeleft=4 
-
+	xfadeleft=4 
+else
 if (statusbyte=XfCh3) && (Byte2=1)
-xfadeleft=3 
-
+	xfadeleft=3 
+else
 if (statusbyte=XfCh2) && (Byte2=1)
-xfadeleft=2
-
+	xfadeleft=2
+else
 if (statusbyte=XfCh1) && (Byte2=1)
-xfadeleft=1 
-
+	xfadeleft=1 
+else
 if (statusbyte=XfCh8) && (Byte2=2)
 {
-xFadeRightOld:=xFadeRight
-xFadeRight=8 
-if xfadeLeft=8
-xFadeLeft:=xFadeLOld
+	ASSHOLE:=1
+	xFadeRightOld:=xFadeRight
+	xFadeRight=8 
+	if xfadeLeft=8
+	xFadeLeft:=xFadeLOld
 }
 
 
 if (statusbyte=XfCh7) && (Byte2=2)
 {
-xFadeRightOld:=xFadeRight
-xFadeRight=7
-if xfadeLeft=7
-xFadeLeft:=xFadeLOld
+	xFadeRightOld:=xFadeRight
+	xFadeRight=7
+	if xfadeLeft=7
+	xFadeLeft:=xFadeLOld
 }
 
 if (statusbyte=XfCh6) && (Byte2=2)
 {
-xFadeRightOld:=xFadeRight
-xFadeRight=6
-if xfadeLeft=6
-xFadeLeft:=xFadeLOld
+	xFadeRightOld:=xFadeRight
+	xFadeRight=6
+	if xfadeLeft=6
+		xFadeLeft:=xFadeLOld
 } 
 
 if (statusbyte=XfCh5) && (Byte2=2)
-if xfaderight !=0
-xfaderightold:=xfaderight
+	if xfaderight !=0
+		xfaderightold:=xfaderight
 if xfadeleft=5
 {
-xfaderight=5 
-xfadeleft:=xfadeLeftOld
+	xfaderight=5 
+	xfadeleft:=xfadeLeftOld
 }
 
 if (statusbyte=XfCh4) && (Byte2=2)
-xfaderight=4 
+	xfaderight=4 
 
 if (statusbyte=XfCh3) && (Byte2=2)
-xfaderight=3 
+	xfaderight=3 
 
 if (statusbyte=XfCh2) && (Byte2=2)
-xfaderight=2
+	xfaderight=2
 
 if (statusbyte=XfCh1) && (Byte2=2)
-xfaderight=1 
+	xfaderight=1 
 
 if (StatusByte=XfCh8Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+{
+	ASSHOLE:=0
+	TrayTip, X-FADER, Channel Unassigned
+}
 
 if (StatusByte=XfCh7Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+{
+	TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=0
+}
 
 if (StatusByte=XfCh6Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+{
+	TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=0
+}
 
 if (StatusByte=XfCh5Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+{
+	TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=0
+}
 
 if (StatusByte=XfCh4Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+{
+	TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=0
+}
 
 if (StatusByte=XfCh3Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+{
+	TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=0
+}
 
 if (StatusByte=XfCh2Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+;TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=0
 
 if (StatusByte=XfCh1Off) && (Byte2=0) && (Byte1=XfadeB1)
-TrayTip, X-FADER, Channel Unassigned
+;TrayTip, X-FADER, Channel Unassigned
+	ASSHOLE:=
 
 ;68 0 135                   0 135 CH8 XFADE OFF  1 151CH8XFADE A 2 151 CH8XFADEB
 
-if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=8)
+/* 
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=8) && (ASSHOLE=1)
 {
-WMPSumval:=round((WMPVol * byte2_100) /100)
+WMPSumval:=round((WMPVol * round(Byte2 / 1.23)) /30)
 AppVolume("wmplayer.exe").setVolume(WMPSumval)
 }
 
-if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeLeft=8)
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeLeft=8) && (ASSHOLE=1)
 {
-WMPSumval:= (WMPVol * (100 - byte2_100))/100
+WMPSumval:= (WMPVol * (100 - round(Byte2 / 1.23)))/30
 AppVolume("wmplayer.exe").setVolume(WMPSumval)
 }
-
-if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=7)
+ */
+if (byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=8) && (ASSHOLE=1)
 {
-CFFSumval:=round((CFFVol * byte2_100) /100)
-AppVolume("chrome.exe").setVolume(CFFSumval)
-AppVolume("firefox.exe").setVolume(CFFSumval)
+	Master_Volume:=round(round(Byte2 / 1.23)*2)
+	soundset, master_volume
+	;AppVolume("wmplayer.exe").setVolume(WMPSumval)
 }
 
-if (byte1=15) && (statusbyte=FaderSByte) && (xFadeLeft=7)
-{
-wmpcall=1
-CFFSumval:=100 - round((CFFVol * byte2_100) /100)
-AppVolume("firefox.exe").setVolume(CFFSumval)
-AppVolume("chrome.exe").setVolume(CFFSumval)
+if((byte1=XFader) && (statusbyte=FaderSByte) && (xFadeLeft=8) && (ASSHOLE=1)) {
+	Soundget, An00s
+	Priiiiick := round(50-((Byte2 / 1.23)/2))
+	master_volume_new :=   100*(An00s / Priiiiick)
+	soundset, master_volume_new
+	;AppVolume("wmplayer.exe").setVolume(WMPSumval)
 }
 
-if (byte1=XFader) && (statusbyte=FaderSByte) && (! xFadeRight) && (! xFadeLeft)
-{
-WMP_Dur:=% media.getItemInfo("Duration")
-WMP_Cur:=% controls.currentPosition
-Duration:= round(WMP_Dur)
-Desired:=(((Duration * 0.85) * byte2_100 ) / 100)
-current:=round(WMP_Cur)
-resultant:=desired - current
-wmp.jump(resultant)
-;tooltip, Desired:%desired%`nCurrent:%current%`nsum %resultant%`nTotal :%Duration%,4000,2000
+if((byte1=XFader) && (statusbyte=FaderSByte) && (xFadeRight=7)) {
+	CFFSumval:=round((BrowserVol * round(Byte2 / 1.23)) /100)
+	AppVolume("chrome.exe").setVolume(CFFSumval)
+	AppVolume("firefox.exe").setVolume(CFFSumval)
 }
 
-if (byte1=65) && (byte2=127) && (statusbyte=128) && (bank=1)
-{
-tooltip, test
+if((byte1=15) && (statusbyte=FaderSByte) && (xFadeLeft=7)) {
+	wmpcall=1
+	CFFSumval:=100 - round((BrowserVol * round(Byte2 / 1.23)) /100)
+	AppVolume("firefox.exe").setVolume(CFFSumval)
+	AppVolume("chrome.exe").setVolume(CFFSumval)
 }
 
+if((byte1=XFader) && (statusbyte=FaderSByte) && (!ASSHOLE)) {
+	WMP_Dur:=% media.getItemInfo("Duration")
+	WMP_Cur:=% controls.currentPosition
+	Duration:= round(WMP_Dur-8)
+	Desired:=((Duration * round(Byte2 / 1.23) ) / 100)
+	current:=round(WMP_Cur)
+	resultant:=desired - current
+	wmp.jump(resultant)
+	;tooltip, Desired:%desired%`nCurrent:%current%`nsum %resultant%`nTotal :%Duration%,4000,2000
+}
 
-; END XFADE RIP
+if((byte1=65) && (byte2=127) && (statusbyte=128) && (bank=1)) {
+	tooltip, test
+}
 
-
-
+;-========================================================================= END XFADE SECT.+++++
 
 
 if  (byte1=64) && (byte2=127) && (statusbyte=144)   ; CLIP DEV VIEW
 {
-GOTO SumTest
+	GOTO SumTest
 }
 
 
 if  (byte1=48) && (statusbyte=176) ; BOUNCE DELAY CH 1 TOP KNOB 
 {
-bounceincdelay := round((byte2 * 1.83) +50) ; needs inverting 
+	bounceincdelay := round((byte2 * 1.83) +50) ; needs inverting 
 }
 
+/*  HAPPY ATM
 if  (byte1=49) && (statusbyte=176) ; BOUNCE COLOUR CH 2 TOP KNOB 
-{
-BounceCol := byte2 ;127 scaled to miliseconds 
-}
+	{
+	BounceCol := byte2 ;
+	}
+
+ */
 ;ahk_pid 16612
-	 ; FFToolTip(Text:="", X:="", Y:="", WhichToolTip:=1)
-
-
+; FFToolTip(Text:="", X:="", Y:="", WhichToolTip:=1)
 settimer, WMP_CHECK, 3300
-
-
-
 return
 ;#Space:: wmp.jump(90)ight
 
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! no edit below here ....
-; don't edit this part!
+; don't edit or read this part!
 MidiMsgDetect(hInput, midiMsg, wMsg) ; Midi input section in "under the hood" calls this function each time a midi message is received. Then the midi message is broken up into parts for manipulation. See http://www.midi.org/techspecs/midimessages.php (decimal values).
 {
 global statusbyte, chan, note, cc, byte1, byte2
@@ -549,10 +620,14 @@ byte1 := (midiMsg >> 8) & 0xFF ; THIS IS DATA1 VALUE = NOTE NUMBER OR CC NUMBER
 byte2 := (midiMsg >> 16) & 0xFF ; DATA2 VALUE IS NOTE VELEOCITY OR CC VALUE
 gosub, MidiRules ; run the subroutine below
 } ; end of MidiMsgDetect funciton
-
 return
-; =============== filters/rules subroutine tests
 
+
+; =============== filters/rules subroutine tests
+if byte1 
+Menu, Tray, Icon, akaiapc_322.ico
+else 
+Menu, Tray, Icon, akaiapc_32.ico
 
 
 ; ========================= end ============================
@@ -598,7 +673,7 @@ midiOutShortMsg(h_midiout, xSByteFlashPause, xCh7, B2PausedColor)
 return
 }
 }
-return
+exit
 
 WMP_CHECK:
 {
@@ -625,7 +700,7 @@ sleep 20,
 sleep 20,
 sleep 20,
 sleep 20,
-;tooltip, success checking after exception
+tooltip,
 }
 return
 }
@@ -665,45 +740,66 @@ gosub WMP_Del
 FileRecycle, % File2Del
 ;F2dName := RegExReplace(File2Del, "^.+\\|\.[^.]+$")
 tooltip, Deleted
-settimer ToolTip_Off, 5000 
+settimer ToolTip_Off, -5000 
 return
 }}
 
 ;PUT STUFF HERE to run initally
 
-
-
-
+^#w::
+SoundGet, penises
+tooltip % penises
+penises:=
+return
 
 #^r::
+if !bouncingthen 
+{
+	Global bouncingthen:=1
+	SetTimer bouncing_on, -1
+} else {
+	Global bouncingthen:=
+}
+Return
+
+bouncing_on:
 bounceloc=1
-bounceoffloc=1
+bounceoffloc=0
 bouncelocreal:=bounceloc + 31
 bounceofflocreal=% bouncelocreal
-Loop
-	{
-	Loop 7
-		{ 
-		bouncelocreal:=bounceloc + 31
-		bounceofflocreal:=bounceoffloc + 31
-		midiOutShortMsg(h_midiout, xSByteONNormal, bouncelocreal, BounceCol)
-		sleep bounceincdelay
-		bounceloc := bounceloc + 1
-		bounceoffloc = % bounceloc
-		midiOutShortMsg(h_midiout, bouncefade, bounceofflocreal, BounceCol)
-		}
-	Loop 7
-		{ 
-		bouncelocreal:=bounceloc + 31
-		bounceofflocreal:=bounceoffloc + 31
-		midiOutShortMsg(h_midiout, xSByteONNormal, bouncelocreal, BounceCol)
-		sleep, bounceincdelay
-		bounceloc := bounceloc - 1
-		bounceoffloc = % bounceloc
-		midiOutShortMsg(h_midiout, bouncefade, bounceofflocreal, BounceCol)
-		}
-	}
+if bouncingthen
+	Loop {
+	if !bouncingthen 
+	break
+	else
+		Loop 7
+			{ 
+			bouncelocreal:=bounceloc + 31
+			bounceofflocreal:=bounceoffloc + 31
+			midiOutShortMsg(h_midiout, 144, bouncelocreal, BounceCol)
+			sleep, bounceincdelay
+			bounceloc := bounceloc + 1
+	bounceofflocreal:=bouncelocreal -1
+	sleep 10
+			midiOutShortMsg(h_midiout, 132, bounceofflocreal, BounceCol)
+	;bounceoffloc := bounceoffloc + 1
+			}
+		Loop 7
+			{ 
+			bouncelocreal:=bounceloc + 31
+			bounceofflocreal:=bounceoffloc + 31
+			midiOutShortMsg(h_midiout, 144, bouncelocreal, fun)
+			sleep, bounceincdelay
+			bounceloc := bounceloc - 1
+			bounceofflocreal:=bouncelocreal +1
+	sleep 10
+			;bounceoffloc :=  bounceloc
+			midiOutShortMsg(h_midiout, 130, bounceofflocreal, BounceCol)
 
+	;bounceoffloc := bounceoffloc - 1
+			}
+		}
+	else return
 
 #t::
 {
@@ -712,14 +808,14 @@ midiOutShortMsg(h_midiout, Sbyte, Mnote, NoteVel)
 return
  }
 
-
+/* 
 #y::
 {
 NoteVel := NoteVel + 1
 midiOutShortMsg(h_midiout, Sbyte, mnote, NoteVel)
 return
 }
-
+ */
 
 #h::
 {
@@ -746,7 +842,7 @@ return
  }
  
 
-#m:: ;finder
+#^m:: ;finder
 {
 ;tooltip test
 Mnote := Mnote + 1
@@ -754,7 +850,9 @@ midiOutShortMsg(h_midiout, Sbyte, mnote, 69)
 return
 }
 
-
+^p::
+fun:=fun+1
+return
 
 #!t::
 {
@@ -805,22 +903,22 @@ return
 
 SumTest:
 {
-testa=%byte2% + %byte1% + %statusbyte%
-sleep 300
-ifnotequal, testa, (%byte2% + %byte1% + %statusbyte%)
- {
-Menu, Tray, Icon, akaiapc_322.ico
-ToolTip, byte1 = %byte1% `nbyte2 = %byte2% `nstatusbyte = %statusbyte% %wMsg% `nBank = %Bank% `nMaster volume %master_volume%`n%Pstate_answer% new`nold %Pstate_answer_old%
- , 4000, 2000, 8
-sleep 50
-testa:=(%byte2% + %byte1% + %statusbyte%)
-}
-Else
-{
-Menu, Tray, Icon, akaiapc_32.ico
-ToolTip,
-Return,
-}
+	testa=%byte2% + %byte1% + %statusbyte%
+	sleep 300
+	ifnotequal, testa, (%byte2% + %byte1% + %statusbyte%)
+	 {
+		Menu, Tray, Icon, akaiapc_322.ico
+		ToolTip, byte1 = %byte1% `nbyte2 = %byte2% `nstatusbyte = %statusbyte% %wMsg% `nBank = %Bank% `nMaster volume %master_volume%`n%Pstate_answer% new`nold %Pstate_answer_old%
+		 , 4000, 2000, 8
+		sleep 50
+		testa:=(%byte2% + %byte1% + %statusbyte%)
+	}
+	Else
+	{
+		Menu, Tray, Icon, akaiapc_32.ico
+		ToolTip,
+		Return,
+	}
 }
 
 
@@ -863,84 +961,97 @@ return
 
 ReadIni() ; also set up the tray Menu
 {
-;Menu, tray, add, MidiSet ; set midi ports tray item
-;Menu, tray, add, ResetAll ; Delete the ini file for testing --------------------------------
-
-global MidiInDevice, MidiOutDevice, version ; version var is set at the beginning.
-IfExist, %version%io.ini
-{
-IniRead, MidiInDevice, %version%io.ini, Settings, MidiInDevice , %MidiInDevice% ; read the midi In port from ini file
-IniRead, MidiOutDevice, %version%io.ini, Settings, MidiOutDevice , %MidiOutDevice% ; read the midi out port from ini file
-}
-Else ; no ini exists and this is either the first run or reset settings.
-{
-MsgBox, 1, No ini file found, Select midi ports.
-ExitApp
-}
+	;Menu, tray, add, MidiSet ; set midi ports tray item
+	;Menu, tray, add, ResetAll ; Delete the ini file for testing --------------------------------
+	global MidiInDevice, MidiOutDevice, version ; version var is set at the beginning.
+	IfExist, %version%io.ini
+	{
+		IniRead, MidiInDevice, %version%io.ini, Settings, MidiInDevice , %MidiInDevice% ; read the midi In port from ini file
+		IniRead, MidiOutDevice, %version%io.ini, Settings, MidiOutDevice , %MidiOutDevice% ; read the midi out port from ini file
+		if (midiInDevice=0) && (midiOutDevice=1)
+		01=1
+		else 
+		01=0
+		if (midiInDevice=1) && (midiOutDevice=2)
+		12=1
+		else 
+		12=0
+		if (midiInDevice=2) && (midiOutDevice=3)
+		23=1
+		else 
+		23=0
+		if (midiInDevice=3) && (midiOutDevice=4)
+		34=1
+		else 
+		(global34=0)
+		if (midiInDevice=4) && (midiOutDevice=5)
+		(45=1) 
+		else 
+		(45=0)
+	} Else {		 ; no ini exists and this is either the first run or reset settings.
+		MsgBox, 1, No ini file found, Select midi ports.
+		ExitApp
+	}
 }
 
 ;CALLED TO UPDATE INI WHENEVER SAVED PARAMETERS CHANGE
 WriteIni()
 {
-global MidiInDevice, MidiOutDevice, version
-
-IfNotExist, %version%io.ini ; if no ini
-FileAppend,, %version%io.ini ; make one with the following entries.
-;IniWrite, %MidiInDevice%, %version%io.ini, Settings, MidiInDevice
-;IniWrite, %MidiOutDevice%, %version%io.ini, Settings, MidiOutDevice
+	global MidiInDevice, MidiOutDevice, version
+	IfNotExist, %version%io.ini ; if no ini
+	FileAppend,, %version%io.ini ; make one with the following entries.
+	;IniWrite, %MidiInDevice%, %version%io.ini, Settings, MidiInDevice
+	;IniWrite, %MidiOutDevice%, %version%io.ini, Settings, MidiOutDevice
 }
 
 ;------------ port testing to make sure selected midi port is valid --------------------------------
 
 port_test(numports,numports2) ; confirm selected ports exist ; CLEAN THIS UP STILL
-
 {
-global midiInDevice, midiOutDevice, midiok
-
-; ----- In port selection test based on numports
-If MidiInDevice not Between 0 and %numports%
-{
-MidiIn := 0 ; this var is just to show if there is an error - set if the ports are valid = 1, invalid = 0
-;MsgBox, 0, , midi in port Error ; (this is left only for testing)
-If (MidiInDevice = "") ; if there is no midi in device
-MidiInerr = Midi In Port EMPTY. ; set this var = error message
-;MsgBox, 0, , midi in port EMPTY
-If (midiInDevice > %numports%) ; if greater than the number of ports on the system.
-MidiInnerr = Midi In Port Invalid. ; set this error message
-Traytip, MIDI-IN Error, midi out port out of range, ,32
-}
-Else
-{
-MidiIn := 1 ; setting var to non-error state or valid
-}
-; ----- out port selection test based on numports2
-If MidiOutDevice not Between 0 and %numports2%
-{
-MidiOut := 0 ; set var to 0 as Error state.
-If (MidiOutDevice = "") ; if blank
-MidiOutErr = Midi Out Port EMPTY. ; set this error message
-;MsgBox, 0, , midi o port EMPTY
-If (midiOutDevice > %numports2%) ; if greater than number of availble ports
-MidiOutErr = Midi Out Port Out Invalid. ; set this error message
-Traytip, MIDI-OUT Error, midi out port out of range, ,32
-}
-Else
-{
-MidiOut := 1 ;set var to 1 as valid state.
-}
-; ---- test to see if ports valid, if either invalid load the gui to select.
-;midicheck(MCUin,MCUout)
-If (%MidiIn% = 0) Or (%MidiOut% = 0)
-{
-MsgBox, 49, Midi Port Error!,%MidiInerr%`n%MidiOutErr%`n`nLaunch Midi Port Selection!
-
-ExitApp
-}
-Else
-{
-midiok = 1
-Return ; DO NOTHING - PERHAPS DO THE NOT TEST INSTEAD ABOVE.
-}
+	global midiInDevice, midiOutDevice, midiok
+	; ----- In port selection test based on numports
+	If MidiInDevice not Between 0 and %numports%
+	{
+		MidiIn := 0 ; this var is just to show if there is an error - set if the ports are valid = 1, invalid = 0
+		;MsgBox, 0, , midi in port Error ; (this is left only for testing)
+		If (MidiInDevice = "") ; if there is no midi in device
+		MidiInerr = Midi In Port EMPTY. ; set this var = error message
+		;MsgBox, 0, , midi in port EMPTY
+		If (midiInDevice > %numports%) ; if greater than the number of ports on the system.
+		MidiInnerr = Midi In Port Invalid. ; set this error message
+		Traytip, MIDI-IN Error, midi out port out of range, ,32
+	}
+	Else
+	{
+		MidiIn := 1 ; setting var to non-error state or valid
+	}
+	; ----- out port selection test based on numports2
+	If MidiOutDevice not Between 0 and %numports2%
+	{
+		MidiOut := 0 ; set var to 0 as Error state.
+		If (MidiOutDevice = "") ; if blank
+		MidiOutErr = Midi Out Port EMPTY. ; set this error message
+		;MsgBox, 0, , midi o port EMPTY
+		If (midiOutDevice > %numports2%) ; if greater than number of availble ports
+		MidiOutErr = Midi Out Port Out Invalid. ; set this error message
+		Traytip, MIDI-OUT Error, midi out port out of range, ,32
+	}
+	Else
+	{
+		MidiOut := 1 ;set var to 1 as valid state.
+	}
+	; ---- test to see if ports valid, if either invalid load the gui to select.
+	;midicheck(MCUin,MCUout)
+	If (%MidiIn% = 0) Or (%MidiOut% = 0)
+	{
+		MsgBox, 49, Midi Port Error!,%MidiInerr%`n%MidiOutErr%`n`nLaunch Midi Port Selection!
+		ExitApp
+	}
+	Else
+	{
+		midiok = 1
+		Return ; DO NOTHING - PERHAPS DO THE NOT TEST INSTEAD ABOVE.
+	}
 }
 Return
 
@@ -984,8 +1095,8 @@ ResetAll: ; for development only, leaving this in for a program reset if needed 
 MsgBox, 33, %version% - Reset All?, This will delete ALL settings`, and restart this program!
 IfMsgBox, OK
 {
-FileDelete, %version%io.ini ; delete the ini file to reset ports, probably a better way to do this ...
-Reload ; restart the app.
+	FileDelete, %version%io.ini ; delete the ini file to reset ports, probably a better way to do this ...
+	Reload ; restart the app.
 }
 IfMsgBox, Cancel
 Return
@@ -1024,15 +1135,15 @@ VarSetCapacity(hMidiIn, 4, 0)
 result := DllCall("winmm.dll\midiInOpen", UInt,&hMidiIn, UInt,DeviceID, UInt,hWnd, UInt,0, UInt,CALLBACK_WINDOW, "UInt")
 If result
 {
-return
+	return
 }
 
 hMidiIn := NumGet(hMidiIn) ; because midiInOpen writes the value in 32 bit binary Number, AHK stores it as a string
 result := DllCall("winmm.dll\midiInStart", UInt,hMidiIn)
 If result
 {
-MsgBox, Error, midiInStart Returned %result%`nRight Click on the Tray Icon - Left click on MidiSet to select valid midi_in port.
-ExitApp
+	MsgBox, Error, midiInStart Returned %result%`nRight Click on the Tray Icon - Left click on MidiSet to select valid midi_in port.
+	ExitApp
 }
 
 OpenCloseMidiAPI()
@@ -1059,89 +1170,86 @@ Return
 
 MidiInsList(ByRef NumPorts)
 { ; Returns a "|"-separated list of midi output devices
-local List, MidiInCaps, PortName, result
-VarSetCapacity(MidiInCaps, 50, 0)
-VarSetCapacity(PortName, 32) ; PortNameSize 32
+	local List, MidiInCaps, PortName, result
+	VarSetCapacity(MidiInCaps, 50, 0)
+	VarSetCapacity(PortName, 32) ; PortNameSize 32
 
-NumPorts := DllCall("winmm.dll\midiInGetNumDevs") ; #midi output devices on system, First device ID = 0
+	NumPorts := DllCall("winmm.dll\midiInGetNumDevs") ; #midi output devices on system, First device ID = 0
 
-Loop %NumPorts%
-{
-result := DllCall("winmm.dll\midiInGetDevCapsA", UInt,A_Index-1, UInt,&MidiInCaps, UInt,50, UInt)
-If (result OR ErrorLevel) {
-List .= "|-Error-"
-Continue
-}
-DllCall("RtlMoveMemory", Str,PortName, UInt,&MidiInCaps+8, UInt,32) ; PortNameOffset 8, PortNameSize 32
-List .= "|" PortName
-}
-Return SubStr(List,2)
+	Loop %NumPorts%
+	{
+		result := DllCall("winmm.dll\midiInGetDevCapsA", UInt,A_Index-1, UInt,&MidiInCaps, UInt,50, UInt)
+		If (result OR ErrorLevel) {
+			List .= "|-Error-"
+			Continue
+		}
+		DllCall("RtlMoveMemory", Str,PortName, UInt,&MidiInCaps+8, UInt,32) ; PortNameOffset 8, PortNameSize 32
+		List .= "|" PortName
+	}
+	Return SubStr(List,2)
 }
 
 MidiInGetNumDevs() { ; Get number of midi output devices on system, first device has an ID of 0
-Return DllCall("winmm.dll\midiInGetNumDevs")
+	Return DllCall("winmm.dll\midiInGetNumDevs")
 }
+
 MidiInNameGet(uDeviceID = 0) { ; Get name of a midiOut device for a given ID
-
-;MIDIOUTCAPS struct
-; WORD wMid;
-; WORD wPid;
-; MMVERSION vDriverVersion;
-; CHAR szPname[MAXPNAMELEN];
-; WORD wTechnology;
-; WORD wVoices;
-; WORD wNotes;
-; WORD wChannelMask;
-; DWORD dwSupport;
-
-VarSetCapacity(MidiInCaps, 50, 0) ; allows for szPname to be 32 bytes
-OffsettoPortName := 8, PortNameSize := 32
-result := DllCall("winmm.dll\midiInGetDevCapsA", UInt,uDeviceID, UInt,&MidiInCaps, UInt,50, UInt)
-
-If (result OR ErrorLevel) {
-MsgBox Error %result% (ErrorLevel = %ErrorLevel%) in retrieving the name of midi Input %deviceID%
-Return -1
-}
-
-VarSetCapacity(PortName, PortNameSize)
-DllCall("RtlMoveMemory", Str,PortName, Uint,&MidiInCaps+OffsettoPortName, Uint,PortNameSize)
-Return PortName
+	;MIDIOUTCAPS struct
+	; WORD wMid;
+	; WORD wPid;
+	; MMVERSION vDriverVersion;
+	; CHAR szPname[MAXPNAMELEN];
+	; WORD wTechnology;
+	; WORD wVoices;
+	; WORD wNotes;
+	; WORD wChannelMask;
+	; DWORD dwSupport;
+	VarSetCapacity(MidiInCaps, 50, 0) ; allows for szPname to be 32 bytes
+	OffsettoPortName := 8, PortNameSize := 32
+	result := DllCall("winmm.dll\midiInGetDevCapsA", UInt,uDeviceID, UInt,&MidiInCaps, UInt,50, UInt)
+	If (result OR ErrorLevel) {
+		MsgBox Error %result% (ErrorLevel = %ErrorLevel%) in retrieving the name of midi Input %deviceID%
+		Return -1
+	}
+	VarSetCapacity(PortName, PortNameSize)
+	DllCall("RtlMoveMemory", Str,PortName, Uint,&MidiInCaps+OffsettoPortName, Uint,PortNameSize)
+	Return PortName
 }
 
 MidiInsEnumerate() { ; Returns number of midi output devices, creates global array MidiOutPortName with their names
-local NumPorts, PortID
-MidiInPortName =
-NumPorts := MidiInGetNumDevs()
+	local NumPorts, PortID
+	MidiInPortName =
+	NumPorts := MidiInGetNumDevs()
 
-Loop %NumPorts% {
-PortID := A_Index -1
-MidiInPortName%PortID% := MidiInNameGet(PortID)
-}
-Return NumPorts
+	Loop %NumPorts% {
+		PortID := A_Index -1
+		MidiInPortName%PortID% := MidiInNameGet(PortID)
+	}
+	Return NumPorts
 }
 
 ; =============== end of midi selection stuff
 
 MidiOutsList(ByRef NumPorts)
 { ; Returns a "|"-separated list of midi output devices
-local List, MidiOutCaps, PortName, result
-VarSetCapacity(MidiOutCaps, 50, 0)
-VarSetCapacity(PortName, 32) ; PortNameSize 32
+	local List, MidiOutCaps, PortName, result
+	VarSetCapacity(MidiOutCaps, 50, 0)
+	VarSetCapacity(PortName, 32) ; PortNameSize 32
 
-NumPorts := DllCall("winmm.dll\midiOutGetNumDevs") ; #midi output devices on system, First device ID = 0
+	NumPorts := DllCall("winmm.dll\midiOutGetNumDevs") ; #midi output devices on system, First device ID = 0
 
-Loop %NumPorts%
-{
-result := DllCall("winmm.dll\midiOutGetDevCapsA", UInt,A_Index-1, UInt,&MidiOutCaps, UInt,50, UInt)
-If (result OR ErrorLevel)
-{
-List .= "|-Error-"
-Continue
-}
-DllCall("RtlMoveMemory", Str,PortName, UInt,&MidiOutCaps+8, UInt,32) ; PortNameOffset 8, PortNameSize 32
-List .= "|" PortName
-}
-Return SubStr(List,2)
+	Loop %NumPorts%
+	{
+		result := DllCall("winmm.dll\midiOutGetDevCapsA", UInt,A_Index-1, UInt,&MidiOutCaps, UInt,50, UInt)
+		If (result OR ErrorLevel)
+		{
+			List .= "|-Error-"
+			Continue
+		}
+		DllCall("RtlMoveMemory", Str,PortName, UInt,&MidiOutCaps+8, UInt,32) ; PortNameOffset 8, PortNameSize 32
+		List .= "|" PortName
+	}
+	Return SubStr(List,2)
 }
 ;---------------------midiOut from TomB and Lazslo and JimF --------------------------------
 
@@ -1152,30 +1260,29 @@ Return SubStr(List,2)
 
 
 OpenCloseMidiAPI() { ; at the beginning to load, at the end to unload winmm.dll
-static hModule
-If hModule
-DllCall("FreeLibrary", UInt,hModule), hModule := ""
-If (0 = hModule := DllCall("LoadLibrary",Str,"winmm.dll")) {
-MsgBox Cannot load libray winmm.dll
-Exit
-}
+	static hModule
+	If hModule
+	DllCall("FreeLibrary", UInt,hModule), hModule := ""
+	If (0 = hModule := DllCall("LoadLibrary",Str,"winmm.dll")) {
+		MsgBox Cannot load libray winmm.dll
+		Exit
+	}
 }
 
 ;FUNCTIONS FOR SENDING SHORT MESSAGES
 
-midiOutOpen(uDeviceID = 0) { ; Open midi port for sending individual midi messages --> handle
-strh_midiout = 0000
-
-result := DllCall("winmm.dll\midiOutOpen", UInt,&strh_midiout, UInt,uDeviceID, UInt,0, UInt,0, UInt,0, UInt)
-If (result or ErrorLevel) {
-;run error_tooltip.ahk
-Traytip, MIDI ERROR, UNABLE TO OPEN OUTPORT, 32
-sleep 2000
-gosub, midiout
-;tooltip, There was an Error opening the midi port.`nError code %result%`nErrorLevel = %ErrorLevel%
-Return -1
-}
-Return UInt@(&strh_midiout)
+midiOutOpen(uDeviceID = 0) {		 ; Open midi port for sending individual midi messages --> handle
+	strh_midiout = 0000
+	result := DllCall("winmm.dll\midiOutOpen", UInt,&strh_midiout, UInt,uDeviceID, UInt,0, UInt,0, UInt,0, UInt)
+	If (result or ErrorLevel) {
+		;run error_tooltip.ahk
+		Traytip, MIDI ERROR, UNABLE TO OPEN OUTPORT, 32
+		sleep 2000
+		gosub, midiout
+		;tooltip, There was an Error opening the midi port.`nError code %result%`nErrorLevel = %ErrorLevel%
+		Return -1
+	}
+	Return UInt@(&strh_midiout)
 }
 
 midiOutShortMsg(h_midiout, MidiStatus, Param1, Param2) { ;Channel,
@@ -1203,56 +1310,54 @@ Param1 := Param1 & 0x00FF ; strip MSB
 }
 */
 result := DllCall("winmm.dll\midiOutShortMsg", UInt,h_midiout, UInt, MidiStatus|(Param1<<8)|(Param2<<16), UInt)
-Menu, Tray, Icon, akaiapc_322.ico
+;Menu, Tray, Icon, akaiapc_322.ico
 If (result or ErrorLevel) {
-;MsgBox There was an Error Sending the midi event: (%result%`, %ErrorLevel%) ; pass back to reload script as this was occuring intermittently.
-midiOutClose(h_midiout)
-gosub, MidiPortRefresh
+	;MsgBox There was an Error Sending the midi event: (%result%`, %ErrorLevel%) ; pass back to reload script as this was occuring intermittently.
+	midiOutClose(h_midiout)
+	gosub, MidiPortRefresh
 }
+; =============================================B%%%%
 }
 
 midiOutClose(h_midiout) { ; Close MidiOutput
-Loop 9 {
-result := DllCall("winmm.dll\midiOutClose", UInt,h_midiout)
-If !(result or ErrorLevel)
-Return
-Sleep 250
-}
-sleep 2000
-;MsgBox Error in closing the midi output port. There may still be midi events being Processed.
-Return -1
+	Loop 80 {
+		result := DllCall("winmm.dll\midiOutClose", UInt,h_midiout)
+		If !(result or ErrorLevel)
+		Return
+		Sleep 250
+	}
+	sleep 2000
+	;MsgBox Error in closing the midi output port. There may still be midi events being Processed.
+	Return -1
 }
 
 ;UTILITY FUNCTIONS
 MidiOutGetNumDevs() { ; Get number of midi output devices on system, first device has an ID of 0
-Return DllCall("winmm.dll\midiOutGetNumDevs")
+	Return DllCall("winmm.dll\midiOutGetNumDevs")
 }
 
 MidiOutNameGet(uDeviceID = 0) { ; Get name of a midiOut device for a given ID
+	;MIDIOUTCAPS struct
+	; WORD wMid;
+	; WORD wPid;
+	; MMVERSION vDriverVersion;
+	; CHAR szPname[MAXPNAMELEN];
+	; WORD wTechnology;
+	; WORD wVoices;
+	; WORD wNotes;
+	; WORD wChannelMask;
+	; DWORD dwSupport;
+	VarSetCapacity(MidiOutCaps, 50, 0) ; allows for szPname to be 32 bytes
+	OffsettoPortName := 8, PortNameSize := 32
+	result := DllCall("winmm.dll\midiOutGetDevCapsA", UInt,uDeviceID, UInt,&MidiOutCaps, UInt,50, UInt)
+	If (result OR ErrorLevel) {
+		MsgBox Error %result% (ErrorLevel = %ErrorLevel%) in retrieving the name of midi output %deviceID%
+		Return -1
+	}
 
-;MIDIOUTCAPS struct
-; WORD wMid;
-; WORD wPid;
-; MMVERSION vDriverVersion;
-; CHAR szPname[MAXPNAMELEN];
-; WORD wTechnology;
-; WORD wVoices;
-; WORD wNotes;
-; WORD wChannelMask;
-; DWORD dwSupport;
-
-VarSetCapacity(MidiOutCaps, 50, 0) ; allows for szPname to be 32 bytes
-OffsettoPortName := 8, PortNameSize := 32
-result := DllCall("winmm.dll\midiOutGetDevCapsA", UInt,uDeviceID, UInt,&MidiOutCaps, UInt,50, UInt)
-
-If (result OR ErrorLevel) {
-MsgBox Error %result% (ErrorLevel = %ErrorLevel%) in retrieving the name of midi output %deviceID%
-Return -1
-}
-
-VarSetCapacity(PortName, PortNameSize)
-DllCall("RtlMoveMemory", Str,PortName, Uint,&MidiOutCaps+OffsettoPortName, Uint,PortNameSize)
-Return PortName
+	VarSetCapacity(PortName, PortNameSize)
+	DllCall("RtlMoveMemory", Str,PortName, Uint,&MidiOutCaps+OffsettoPortName, Uint,PortNameSize)
+	Return PortName
 }
 
 MidiOutsEnumerate() { ; Returns number of midi output devices, creates global array MidiOutPortName with their names
@@ -1275,11 +1380,7 @@ PokeInt(p_value, p_address) { ; Windows 2000 and later
 DllCall("ntdll\RtlFillMemoryUlong", UInt,p_address, UInt,4, UInt,p_value)
 }
 
-
-
 ;=remote WMP stuff
-
-
 class RemoteWMP
 {
    __New()  {
@@ -1312,57 +1413,51 @@ return
    }
    
 	Pstate()  {
-	if Pstate_answer=42 ; a token declaring as a num for init
+	if (Pstate_answer=42) { ; a token declaring as a num for init
+			gosub old2new  ;tooltip, INIT 
+			Pstate_answer = % this.player.playState
+			Pstate_answer_old = % this.player.playState
+			gosub update_lights
+			return
+		} else {
+		try
 		{
-		gosub old2new  ;tooltip, INIT 
-		Pstate_answer = % this.player.playState
-		Pstate_answer_old = % this.player.playState
-		gosub update_lights
-		return
+			Pstate_answer :=  this.player.playState
 		}
-	else
+		Catch
 		{
-try
-{
-		Pstate_answer :=  this.player.playState
-}
-Catch
-{
-sleep 250
-try
-{
-		Pstate_answer :=  this.player.playState
-}
-Catch
-{
-sleep 250
-try
-{
-		Pstate_answer :=  this.player.playState
-}
-Catch
-{
-sleep 250
-try
-{
-		Pstate_answer :=  this.player.playState
-}
-Catch
-{
-sleep 250
-try
-{
-		Pstate_answer :=  this.player.playState
-
-
-
-}}}}}
-;sleep 1000
+			sleep 250
+			try
+			{
+				Pstate_answer :=  this.player.playState
+			}
+			Catch
+			{
+				sleep 250
+				try
+				{
+					Pstate_answer :=  this.player.playState
+				}
+				Catch
+				{
+					sleep 250
+					try
+					{
+						Pstate_answer :=  this.player.playState
+					}
+					Catch
+					{
+						sleep 250
+						try
+						{
+							Pstate_answer :=  this.player.playState
+}}}}} ;¬¬¬¬¬¬
+		;sleep 1000
 		gosub Song_Compare
 		return
 	}}
 	
-   TogglePause()  {
+   TogglePause() {
       if (this.player.playState = 3)  ; Playing = 3
          this.player.Controls.pause()
       else
@@ -1371,8 +1466,7 @@ try
    
 }
 
-IWMPRemoteMediaServices_CreateInstance()
-{
+IWMPRemoteMediaServices_CreateInstance() {
    static vtblUnk, vtblRms, vtblIsp, vtblOls, vtblPtrs := 0, size := (A_PtrSize + 4)*4 + 4
    if !VarSetCapacity(vtblUnk)  {
       extfuncs := ["QueryInterface", "AddRef", "Release"]
@@ -1418,8 +1512,7 @@ IWMPRemoteMediaServices_CreateInstance()
    return pObj
 }
 
-IUnknown_QueryInterface(this_, riid, ppvObject)
-{
+IUnknown_QueryInterface(this_, riid, ppvObject) {
    static IID_IUnknown, IID_IWMPRemoteMediaServices, IID_IServiceProvider, IID_IOleClientSite
    if !VarSetCapacity(IID_IUnknown)  {
       VarSetCapacity(IID_IUnknown, 16), VarSetCapacity(IID_IWMPRemoteMediaServices, 16), VarSetCapacity(IID_IServiceProvider, 16), VarSetCapacity(IID_IOleClientSite, 16)
@@ -1503,97 +1596,57 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 }
 
 WMP_NEXT:
-{
 Process, Exist, wmplayer.exe
-{
+ControlSend , ,^f, Windows Media Player 
 ifwinnotexist, Windows Media Player
 {
-TrayTip, Windows Media Player, Process found but window Not,,2
-Return
+	TrayTip, Windows Media Player, Process found but window Not,3000,2
+	Return
 }
 Else
-ifwinnotactive, Windows Media Player
-{
-ControlSend, , ^s, Windows Media Player 
-;oldsong= % media.sourceURL
-
-sleep, 350
-ControlSend, , ^f, Windows Media Player 
-sleep 100
-thecall1:
-gosub thetry
-if newsong =% oldsong
-{
-;tooltip, newsong = oldsong
-sleep 200
-gosub thecall1
-}
-else
-{
-wmp.jump(skipD)
-sleep 200
-ControlSend, ,^p, Windows Media Player,
-gosub update_lights
-;TOOLTIP, congrats you changed to the next tune you bell
-RETURN
-}
+	{
+		oldsong:=newsong
+		PostMessage, 0x111, Stop, 0, ,%WinTitle%
+		sleep, 50
+		PostMessage, 0x111, Next, 0, ,%WinTitle%
+		sleep 50
+		thecall1:
+		gosub thetry
+		if newsong =% oldsong
+		{
+			traytip Windows Media Player, End of Playlist		
+			;tooltip, newsong = oldsong
+			exit
+		}
+		else
+		{
+			wmp.jump(skipD)
+			sleep 100
+			PostMessage, 0x319, 0, Play, ,%WinTitle%
+			;tooltip, congrats you changed to the next tune bell
+		}
+	}
 return
-}
-
-ifwinactive, Windows Media Player
-{
-Send,^s
-;oldsong= % media.sourceURL
-sleep, 350
-Send, ^f
-sleep 200
-thecall2:
-gosub thetry
-sleep 200
-if newsong =% oldsong
-{
-;tooltip, newsong = oldsong
-sleep 200
-gosub thecall2
-}
-else
-{
-wmp.jump(skipD)
-sleep 300
-Send,^p
-gosub update_lights
-sleep 100
-TOOLTIP, 
-RETURN
-}}
-return
-} 
-return 
-}
 
 WMP_Refresh: 
 {
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-controls := wmp.player.controls
-return
+	wmp := new RemoteWMP
+	media := wmp.player.currentMedia
+	controls := wmp.player.controls
+	return
 }
 
 THETRY:
 {
-sleep, 200
-gosub WMP_refresh
-sleep 200
-newsong= % media.sourceURL
-sleep 200
-return
+	sleep, 200
+	gosub WMP_refresh
+	sleep 200
+	newsong= % media.sourceURL
+	sleep 200
+	return
 }
-return
 
-;END WMP
-
-
-;APP VOL
+;	END WMP 	;	APP VOL
 
 AppVolume(app:="", device:="")
 {
@@ -1722,7 +1775,6 @@ VA_ISimpleAudioVolume_GetMute(this, ByRef Muted) {
 }
 
 ;Dsiplay Brightness 
-
 SetDisplayBrightness(Brightness) {
    Static Minimum := "0", Current := "", Maximum := "5000"
    HMON := DllCall("User32.dll\MonitorFromWindow", "Ptr", 0, "UInt", 0x02, "UPtr")
@@ -1743,26 +1795,41 @@ SetDisplayBrightness(Brightness) {
  }
 return
 
-
 rainbow:
 {
-loop
-{
-loop 128
-{
-midiOutShortMsg(h_midiout, Sbyte, mnote, bowcol)
-bowcol:=bowcol+1
-}}
-loop 128
-{
-midiOutShortMsg(h_midiout, Sbyte, mnote, bowcol)
-bowcol:=bowcol-1
+	loop
+	{
+		loop 128 {
+			midiOutShortMsg(h_midiout, Sbyte, mnote, bowcol)
+			bowcol:=bowcol+1
+		}
+	}
+	loop 128 {			
+		midiOutShortMsg(h_midiout, Sbyte, mnote, bowcol)
+		bowcol:=bowcol-1
+	}
+	return
 }
+
+Toggle_midi_In_out:
+if MidiInDevice = 1
+	MidiInDevice = 0
+else MidiInDevice = 1
+if MidiOutDevice = 0
+	MidiOutDevice = 1
+else MidiOutDevice = 0
+gosub, MidiPortRefresh ; used to refresh the input and output port lists - see label below
+port_test(numports,numports2) ; test the ports - check for valid ports?
+gosub, midiin_go ; opens the midi input port listening routine
+gosub, midiout ; opens the midi out port
 return
-}
 
 
+Restart_plx:
+Reload
 
-;credits to Orbik and all the crew on AHK steroids
+;credits to Orbik and all the AHK forum
 
-  
+Open_script_folder:
+Run %COMSPEC% /c explorer.exe /select`, "%A_ScriptFullPath%",, Hide
+return

@@ -9,9 +9,10 @@ SetWorkingDir %A_ScriptDir%
 Menu, Tray, Icon, WMP.ico
 Menu, Tray, noStandard
 Menu, Tray, Add, Open script folder, Open_script_folder,
+Menu, Tray, Add, Restart Windows Media Player, Restart_WMP,
 Menu, Tray, Standard
 
-global G3nre
+global G3nre, global choice
 global S := 1200 ;; Sleep Time (ms)
 global newsong
 Global Genres:="i)(dnb)|(reggae)|(riddim)|(hiphop)|(garage)|(rock)|(ambient)|(samples)|(my music)|(audiobooks)|(sLSk)|(FOAD)"
@@ -19,7 +20,9 @@ Global Needle4:="i)[1234567890.'`)}{(_]|(-khz)(rmx)|(remix)|(mix)|(refix)|(vip)|
 Global Needle2:="i)(\s[a-z]{1,2}\s)", Global Needle3:="( . )|(^[a-z][\s])|(    )|(   )|(  )|[.]"
 Global StartPos_Offset:=0, Global StartPos_Offset := 4, Global Search_Root:="", Global Genre:=""
 Con_Cat_N_8:="c:\out\temp.txt"
-
+gag=C:\Users\%A_UserName%\anaconda3
+if fileexist(gag)
+	ANACONDA := True
 ;VARs::::::::::::;
 Stop:=18809, Play:=0x2e0000, Paused:=32808, Prev:=18810, Next:=18811, Vol_Up:=32815, Vol_Down:=32816 ;Paused=18808     
 Loop 2
@@ -35,7 +38,7 @@ Media := WMP.player.currentMedia
 Controls := WMP.player.Controls
 trayTip, Windows Media Player, % Media.sourceURL
 onexit() {
-	FileDelete, %Con_Cat_N_8%
+	fileDelete, %Con_Cat_N_8%
 }
 ;newsong= % Media.sourceURL
 
@@ -127,227 +130,233 @@ if !Secs2Sample_Start { ;First... get start time
 	Sample_start_Sec:=Secs2Sample_Start-(Sample_start_min*60)
 } else {
 	if Secs2Sample_End:=round(controls.currentPosition)
-Sample_End_min:= Floor(Secs2Sample_End/60)
-if Sample_End_Hr:=Floor(Sample_End_min/60)
-	Sample_End_min:=Sample_End_min-(Sample_End_Hr*60)
-Sample_End_Sec:=Secs2Sample_End-(Sample_End_min*60)
-Start_Time=%Sample_start_Hr%:%Sample_start_min%:%Sample_start_Sec%
-End_Time=%Sample_End_Hr%:%Sample_End_min%:%Sample_End_Sec%
+		Sample_End_min:= Floor(Secs2Sample_End/60)
+	if Sample_End_Hr:=Floor(Sample_End_min/60)
+		Sample_End_min:=Sample_End_min-(Sample_End_Hr*60)
+	Sample_End_Sec:=Secs2Sample_End-(Sample_End_min*60)
+	Start_Time=%Sample_start_Hr%:%Sample_start_min%:%Sample_start_Sec%
+	End_Time=%Sample_End_Hr%:%Sample_End_min%:%Sample_End_Sec%
 
-GUI_:
-regRead, DefaultChoice, HKEY_CURRENT_USER\Software\WMP_MATT, extractor default
-c1:="extract region", c2:="delete region", c3:="xtract voice", c4:="xtract music"
-if instr(DefaultChoice,c1)
-	Choices=%c1%||%c2%|%c3%|%c4%
-else if instr(DefaultChoice,c2)
-	Choices=%c1%|%c2%||%c3%|%c4%
-else if instr(DefaultChoice,c3)
-	Choices=%c1%|%c2%|%c3%||%c4%
-else if instr(DefaultChoice,c4)
-	Choices=%c1%|%c2%|%c3%|%c4%|
-else 	Choices=%c1%||%c2%|%c3%|%c4% ;IF no default is found, extract region is default
-gui, Xtract_i:new , , Sampler
-gui +HwndQuestionHwnd
-gui, Add, DropDownList, w82 vChoice, %Choices%
-gui, Add, checkbox, vSave ,save default
-gui, Add, Button,  Default gPerform w80, OK  (Enter)
-gui, Add, Button,  w80 gCancel, Cancel  (Esc)
-gui, Show , Center, Sampler	
-OnMessage(0x200, "Help")
-return
+	GUI_:
+	regRead, DefaultChoice, HKEY_CURRENT_USER\Software\WMP_MATT, extractor default
+	c1:="Extract region", c2:="Delete region"
+		if ANACONDA {
+			c3:="Extract vox", c4:="Extract inst"
+			if instr(DefaultChoice,c1) 
+				Choices=%c1%||%c2%|%c3%|%c4%
+			else if instr(DefaultChoice,c2)
+				Choices=%c1%|%c2%||%c3%|%c4%
+			else if instr(DefaultChoice,c3)
+				Choices=%c1%|%c2%|%c3%||%c4%
+			else if instr(DefaultChoice,c4)
+				Choices=%c1%|%c2%|%c3%|%c4%|
+			else Choices=%c1%||%c2%|%c3%|%c4% 	;	 IF no default is found, Extract region is default
+		} else {
+			if instr(DefaultChoice,c1) 
+				Choices=%c1%||%c2%
+			else if instr(DefaultChoice,c2)
+				Choices=%c1%|%c2%||
+			else Choices=%c1%||%c2%
+		}
 
-Help(wParam, lParam, Msg) {
-	MouseGetPos,,,, OutputVarControl
-	if !OutputVarControlold
-		OutputVarControlold=%OutputVarControl%
-	IfEqual, OutputVarControl, Button3 
-	{
-		if OutputVarControlold != OutputVarControl
-		toolTip ... Pick endpoint again`nOr Close window (x)`nto reset start position
-		OutputVarControlold=%OutputVarControl%
-	} else {
-		sleep % S
-		tooltip
+	gui, Xtract_i:new , , Sampler
+	gui +HwndQuestionHwnd
+	gui, Add, DropDownList, w82 vChoice, %Choices%
+	gui, Add, checkbox, vSave ,save default
+	gui, Add, Button,  Default gPerform w80, OK  (Enter)
+	gui, Add, Button,  w80 gCancel, Cancel  (Esc)
+	gui, Show , Center, Sampler	
+	OnMessage(0x200, "Help")
+	setTimer Icon_Alternate, 800
+	return
+
+	Help(wParam, lParam, Msg) {
+		MouseGetPos,,,, OutputVarControl
+		if !OutputVarControlold
+			OutputVarControlold=%OutputVarControl%
+		IfEqual, OutputVarControl, Button3 
+		{
+			if OutputVarControlold != OutputVarControl
+			toolTip ... Pick endpoint again`nOr Close window (x)`nto reset start position
+			OutputVarControlold=%OutputVarControl%
+		} else {
+			sleep % S
+			tooltip
+		}
 	}
-}
 
-~escape:: 
-ifWinactive ahk_id %HwndQuestionHwnd%
-	gosub cancel
-return
+	~escape:: 
+	ifWinactive ahk_id %HwndQuestionHwnd%
+		gosub cancel
+	return
 
-Xtract_GuiClose:
-gui, Destroy
-gosub Cleanup_xtract
-return
+	Xtract_GuiClose:
+	gui, Destroy
+	setTimer Icon_Alternate, off
+	gosub Cleanup_xtract
+	return
 
-Cleanup_xtract:
-Secs2Sample_End:="", Secs2Sample_Start:="", Output_Filename_Full:="", inputfilename:="", Output_Prefix:="", choice:=""
-return
+	Cleanup_xtract:
+	Secs2Sample_End := "", Secs2Sample_Start := "", Output_Filename_Full := "", inputfilename := "", Output_Prefix := "", choice := ""
+	return
 
-Cancel:
-gui, Destroy
-return
+	Cancel:
+	gui, Destroy
+	return
 
-Perform:
-global needL := "i)(?:Extracted)(?:[ ])[0-9]"
-gui, Submit
-gui, Destroy 
-inichoice:=choice
-if Save 
-	;IniWrite, %choice%, wmpmatt.ini, Settings, inichoice
-	RegWrite, REG_SZ, HKEY_CURRENT_USER\SOFTWARE\WMP_MATT, Extractor Default, %choice%
-Secs2Sample_Start:=
-If Choice:="Extract"
-	process_Action:="-t", process_Type:="Extracted"
-If Choice:="Trim Region"
-	process_Action:="-to", process_Type:="Trimmed"
-Output_Prefix=%OutNameNoExt% - %process_Type%
-Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
-
-File_Numbering:
-if n:=fileexist(Output_Filename_Full)
-{
-	n := 1, RegXPos := 1, Match:=
-	while RegXPos := regexmatch(Output_Prefix, needL, Match, RegXPos) {
-		File_Num := Match
-		RegXPos = 666
-	}
-	if !File_Num
-		File_Num:=1
-	else 
-		File_Num := File_Num + 1
-	Output_Filename_Full=%OutDir%\%Output_Prefix% %File_Num%.%OutExtension%
-} 
-else
+	Perform:
+	global needL := "i)(?:Extracted)(?:[ ])[0-9]"
+	gui, Submit
+	gui, Destroy 
+	inichoice := choice
+	if Save 
+		RegWrite, REG_SZ, HKEY_CURRENT_USER\SOFTWARE\WMP_MATT, Extractor Default, %choice%
+	Secs2Sample_Start :=
+	If choice = Extract region
+		process_Action:="-t", process_Type:="Extracted"
+	If Choice = Delete region
+		process_Action:="-to", process_Type:="Trimmed"
+	Output_Prefix=%OutNameNoExt% - %process_Type%
 	Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
-if FileExist(Output_Filename_Full) { ; Check_Folder
-	splitPath, Output_Filename_Full , , , , Output_Prefix
-	goto File_Numbering
-	return
-}
-Output_Prefix=%Output_Prefix% %File_Num%
 
-if Extract && Trim 
-{
-	Output_Filename_Full=%OutDir%\%OutNameNoExt% - Extracted.%OutExtension%
-	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -t %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
-	IF DICKS:=INSTR(OutNameNoExt, "Trimmed")
-		Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
-	else
-		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
-	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% -to %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
-	InvokeVerb(Output_Filename_Full, "Cut", True)
-	return
-}
-else If Trim
-{
-	SecsDuration:=round(media.getItemInfo("Duration"))
-	Sample_Duration_min:= Floor(SecsDuration/60)
-	if Sample_Duration_Hr:=Floor(Sample_Duration_min/60)
-		Sample_Duration_min:=Sample_Duration_min-(Sample_Duration_Hr*60)
-	Sample_Duration_Sec:=SecsDuration-(Sample_Duration_min*60)
-	Output_Duration=%Sample_Duration_Hr%:%Sample_Duration_min%:%Sample_Duration_Sec%
-	FirstHalf=%OutDir%\%OutNameNoExt% - Trimmed first half.%OutExtension%
-	SecondHalf=%OutDir%\%OutNameNoExt% - Trimmed 2nd half.%OutExtension%
-	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss 0:0:0 -to %Start_Time% -c:v copy -c:a copy "%FirstHalf%",,hidden
-	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %End_Time% -to %Output_Duration% -c:v copy -c:a copy "%SecondHalf%",,hidden
-	FileAppend , file '%FirstHalf%'`n, %Con_Cat_N_8%
-	FileAppend , file '%SecondHalf%'`n, %Con_Cat_N_8%
-	sleep 1500
-	IF DICKS:=INSTR(OutNameNoExt, "Trimmed")
-		Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
-	else
-		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
-	runWait, %comspec% /c ffmpeg -y -f concat -safe 0 -i "%Con_Cat_N_8%" -c copy "%Output_Filename_Full%",,hidden
-	FileDelete, %FirstHalf%
-	FileDelete, %SecondHalf%
-	FileDelete, %Con_Cat_N_8%
-	FileGetTime, Old_D8 , %FullPath%, m
-	FileSetTime, Old_D8 , %Output_Filename_Full%, m
-	;FileRecycle, %FullPath%
-	Bugga:
-	sleep 500
-	if !fileExist(FullPath)
-		FileMove, Output_Filename_Full, FullPath
-	else 
-		goto bugga
-	Exit
-} else {
-	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% %process_Action% %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
-	if NewEnc {
-		msgbox, FFMPEG Encode section wip ;encode
+	File_Numbering:
+	if ( n := fileexist( Output_Filename_Full ) ) {
+		n := 1, RegXPos := 1, Match:=
+		while RegXPos := regexmatch(Output_Prefix, needL, Match, RegXPos) {
+			File_Num := Match
+			RegXPos = 666
+		}
+		if !File_Num
+			File_Num:=1
+		else 
+			File_Num := File_Num + 1
+		Output_Filename_Full=%OutDir%\%Output_Prefix% %File_Num%.%OutExtension%
+	} else
+		Output_Filename_Full=%OutDir%\%Output_Prefix%.%OutExtension%
+	if FileExist(Output_Filename_Full) { ; Check_Folder
+		splitPath, Output_Filename_Full , , , , Output_Prefix
+		goto File_Numbering
 		return
-	} 
-	Else {
+	}
+	Output_Prefix=%Output_Prefix% %File_Num%
+
+	If (choice = "Delete region") {
+		SecsDuration:=round(media.getItemInfo("Duration"))
+		Sample_Duration_min:= Floor(SecsDuration/60)
+		if Sample_Duration_Hr:=Floor(Sample_Duration_min/60)
+			Sample_Duration_min:=Sample_Duration_min-(Sample_Duration_Hr*60)
+		Sample_Duration_Sec:=SecsDuration-(Sample_Duration_min*60)
+		Output_Duration=%Sample_Duration_Hr%:%Sample_Duration_min%:%Sample_Duration_Sec%
+		FirstHalf=%OutDir%\%OutNameNoExt% - Trimmed first half.%OutExtension%
+		SecondHalf=%OutDir%\%OutNameNoExt% - Trimmed 2nd half.%OutExtension%
+		runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss 0:0:0 -to %Start_Time% -c:v copy -c:a copy "%FirstHalf%",,hidden
+		runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %End_Time% -to %Output_Duration% -c:v copy -c:a copy "%SecondHalf%",,hidden
+		FileAppend , file '%FirstHalf%'`n, %Con_Cat_N_8%
+		FileAppend , file '%SecondHalf%'`n, %Con_Cat_N_8%
+		sleep 1500
+		if instr(OutNameNoExt, "Trimmed")
+			Output_Filename_Full=%OutDir%\%OutNameNoExt%.%OutExtension%
+		else
+			Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
+		runWait, %comspec% /c ffmpeg -y -f concat -safe 0 -i "%Con_Cat_N_8%" -c copy "%Output_Filename_Full%",,hidden
+		fileDelete, %FirstHalf%
+		fileDelete, %SecondHalf%
+		fileDelete, %Con_Cat_N_8%
+		fileGetTime, Old_D8 , %FullPath%, m
+		fileSetTime, Old_D8 , %Output_Filename_Full%, m
+		;FileRecycle, %FullPath%
+		Check_Output:
+		sleep 500
+		if !fileExist(FullPath)
+			fileMove, Output_Filename_Full, FullPath
+		else {
+			if !tried
+				tried = 1
+			else
+				tried := tried+1
+			goto Check_Output
+		}
+		exit
+	} else {
+		A:="", B:=""
+		A=%Start_Time%
+		B=%End_Time%
+		runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %A% %Process_Action% %B% -c:v copy -c:a copy "%Output_Filename_Full%",,hidden
+	msgbox ffmpeg -i "%FullPath%" -ss %A% %Process_Action% %B% 
+		if NewEnc {
+			msgbox, FFMPEG Encode section wip ;encode
+			return
+		} 
+	}
+	if ( choice = "Extract vox" || choice = "Extract inst" ) {
 		run, conda run spleeter separate "%Output_Filename_Full%",,hidden
-		winwaitactive, ahk_exe conda.exe
-		winhide, ahk_exe conda.exe
+		winWaitActive, ahk_exe conda.exe
+		winHide, ahk_exe conda.exe
 		inputfilename=%Output_Filename_Full%
-		if (choice="Extract Voice") {
-			;Main_Result_WAV=%temp%\separated_audio\%OutNameNoExt%\vocals.wav
-			Main_Result_WAV=C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%\vocals.wav		
+		if (choice="Extract vox") { 		
+			Main_Result_WAV=C:\Users\%A_UserName%\AppData\Local\Temp\separated_audio\%Output_Prefix%\vocals.wav		
 			Output_Filename_Full=%OutDir%\%Output_Prefix% - Voice.wav
-			if !raw
-				msgbox do encode
-			else {
-				My_Gooch:
+		;	if !raw
+		;		msgbox do encode
+		;	else {
+				Check_Output_2:
 				if !fileexist(Main_Result_WAV) { ; check spleeter files have appeared
 					sleep % S
-					goto My_Gooch
-				}
-				else {
+					goto Check_Output_2
+				} else {
 					msgbox, %Main_Result_WAV%  exist 
 				}
-				filemove %Main_Result_WAV%, %Output_Filename_Full%
+				fileMove %Main_Result_WAV%, %Output_Filename_Full%
 				if errorlevel, msgbox %errorlevel% 
-				Confirm_Extraction_Move:
+				Check_Output_Moved:
 				if !fileexist(Output_Filename_Full) { ; check if previous move has occurred
 					sleep % S		
-					goto Confirm_Extraction_Move
+					goto Check_Output_Moved
 				}				
-				filedelete, %inputfilename% ; remove temp output file
-				fileRemoveDir, C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%
-			}
+				fileDelete, %inputfilename% ; remove temp output file
+				fileRemoveDir, C:\Users\%A_UserName%\AppData\Local\Temp\separated_audio\%Output_Prefix%
+		;	}
+		} else 
+		if (choice="Extract Music") {		
+			Main_Result_WAV=C:\Users\%A_UserName%\AppData\Local\Temp\separated_audio\%Output_Prefix%\accompaniment.wav
+		;		if !raw {
+		;			msgbox do encode
+		;			return
+		; } else {
+			Output_Filename_Full=%OutDir%\%OutNameNoExt% - Music Content of Extracted.wav
+			fileMove, Main_Result_WAV, Output_Filename_Full
+			fileRecycle, inputfilename
+			fileRemoveDir, C:\Users\%A_UserName%\AppData\Local\Temp\separated_audio\%Output_Prefix%
+		;	}
 		}
-	else 
-		if (choice="Extract Music") {		;Main_Result_WAV=%temp%\separated_audio\%OutNameNoExt%\accompaniment.wav
-			Main_Result_WAV=C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%\accompaniment.wav
-			if !raw {
-				msgbox do encode
-				return
-			}
-			else {
-				Output_Filename_Full=%OutDir%\%OutNameNoExt% - Music Content of Extracted.wav
-				fileMove, Main_Result_WAV, Output_Filename_Full
-				fileRecycle, inputfilename
-				fileRemoveDir, C:\Users\ninj\AppData\Local\Temp\separated_audio\%Output_Prefix%
-			}
+	}
+
+	Attempt_Cut:
+	ttt =% clipboard
+	Aa_C:
+	if fileexist(Output_Filename_Full) {
+		if (InvokeVerb(Output_Filename_Full, "Cut", True)) {
+			if clipboard = ttt
+			{
+				goto Aa_C
+			} else
+				tooltip
+		} else {
+			sleep, % S
+			goto Attempt_Cut
 		}
-	
-Attempt_Cut:
-if fileexist(Output_Filename_Full)
-	if InvokeVerb(Output_Filename_Full, "Cut", True)
-	{
 		goSub Cleanup_xtract
+		gui, Destroy
 		return
 	}
-else {
-		sleep, % S
-		goto Attempt_Cut
+	if !fileexist(Output_Filename_Full) {
+		sleep 500
+		goto aa_C
 	}
-
-	}
-}
-gui, Destroy
-return
+	return
 
 }
 return
-
-
-
-
 <^>!x::		;altGr x  
 Path2File:=Media.sourceURL
 if InvokeVerb(Path2File, "Cut")
@@ -426,7 +435,7 @@ ifWinNotExist, Windows Media Player
 	{
 		trayTip Windows Media Player, End of Playlist		
 		;tooltip, newsong = oldsong
-		Exit
+		exit
 	} else {
 		goSub Genre_Search
 		WMP.jump(StartPos_Offset)
@@ -541,8 +550,8 @@ while p := RegExMatch(newsong, Genres, Matched_String, p + StrLen(Matched_String
 		StartPos_Offset:=30, p:=999, Genre:="ambient", Search_Root:="S:\- - MP3 -\Chill", faggot:=1
 	else if (g3nre="Spoken Word") || (g3nre="Audiobook")
 		StartPos_Offset:=0, p:=999, Genre:="audiobooks", Search_Root:="S:\Documents\My Audio", faggot:=1
-	if !genre || !faggot
-		msgBox no genre 
+	; if !genre || !faggot
+		; msgBox no genre 
 	}
 return
 
@@ -566,7 +575,7 @@ WMP2del := new RemoteWMP
 sleep, 300
 Media2del := WMP2del.player.currentMedia
 goSub WMP_next
-setTimer, DELETE_, -1000
+setTimer, DELETE_, -400
 return
 
 DELETE_:   
@@ -575,7 +584,8 @@ try
 catch
 	goSub WMP_Del
 FileRecycle, % File2Del ;trayTip, Windows Media Player, Deleted %File2Del%, 3, 1
-
+tooltip NIGGER DEAD
+tooltip,
 return
 
 WMP_add_Playlist:
@@ -588,11 +598,11 @@ FullPath:=Media.sourceurl
 sleep, 20
 if fileexist("New_Playlist.m3u") {
 	if !fileexist Playlist.m3u
-		filemove New_Playlist.m3u, Playlist.m3u
+		fileMove New_Playlist.m3u, Playlist.m3u
 	else
 		try {
 			if !fileexist(Playlist%p00f%.m3u)
-				filemove New_Playlist.m3u, Playlist%p00f%.m3u
+				fileMove New_Playlist.m3u, Playlist%p00f%.m3u
 	} catch {
 			p00f:=p00f+1
 		}
@@ -605,6 +615,18 @@ Clip_Commander:
 if (clipboard!=Monster_Clip) {
 	setTimer Clip_Commander, off
 	Menu, Tray, Icon, WMP.ico
+}
+return
+
+Icon_Alternate:
+if !toggler {
+	ZZ := "WMP2.ico"
+	Menu, Tray, Icon, %ZZ%
+	toggler := 1
+} else {
+	ZZ := "WMP.ico"
+	Menu, Tray, Icon, %ZZ%
+	toggler := 
 }
 return
 
@@ -919,6 +941,68 @@ VA_ISimpleAudioVolume_GetMute(this, ByRef Muted) {
 	return DllCall(NumGet(NumGet(this+0)+6*A_PtrSize), "ptr", this, "int*", Muted)
 }
 
+Restart_WMP:
+WMP := new RemoteWMP
+sleep, 30
+Media := WMP.player.currentMedia
+Path2File:=Media.sourceURL
+Controls := WMP.player.Controls
+time:=round(controls.currentPosition)
+run taskkill /F /IM WMPlayer.exe 
+sleep, 3800
+run wmplayer.exe "%Path2File%"
+sleep 100
+bum_open:
+WMP := new RemoteWMP
+if !WMP {
+	sleep 100
+	goto bum_open
+}
+bum_take_aim:
+if WMP {
+	try
+		Media := WMP.player.currentMedia
+	catch {
+		sleep 100
+		goto bum_take_aim
+	}
+} else {
+	sleep 100
+	goto bum_take_aim
+}
+if !Media {
+	sleep 100
+	goto bum_take_aim
+}
+bum_start_shitting:
+if Media {
+	Path2File:=Media.sourceURL
+} else {
+	sleep 100
+	goto bum_start_shitting
+}
+if !Path2File {
+	sleep 100
+	goto bum_start_shitting
+}
+bum_shit_everywhere:
+if Path2File {
+	Controls := WMP.player.Controls
+} else {
+	sleep 100
+	goto bum_shit_everywhere
+}
+if !Controls
+	goto bum_shit_everywhere
+bum_start_wiping:
+if controls {
+	WMP.jump(time)
+} else {
+	sleep 100
+	goto bum_start_wiping
+}
+return
+
 Open_script_folder:	
 runwait %COMSPEC% /C explorer.exe /select`, "%a_scriptFullPath%",, hide
 sleep %S%
@@ -966,7 +1050,7 @@ if !Secs2Sample_Start {
 Cancel:
 gui, Destroy
 Secs2Sample_Start:=
-Exit
+exit
 
 Perform:
 gui, Submit
@@ -1031,25 +1115,25 @@ If Trim {
 	else
 		Output_Filename_Full=%OutDir%\%OutNameNoExt% - Trimmed.%OutExtension%
 	runWait, %comspec% /c ffmpeg -y -f concat -safe 0 -i "%Con_Cat_N_8%" -c copy "%Output_Filename_Full%",,Hidden
-	FileDelete, %FirstHalf%
-	FileDelete, %SecondHalf%
-	FileDelete, %Con_Cat_N_8%
-	FileGetTime, Old_D8 , %FullPath%, m
-	FileSetTime, Old_D8 , %Output_Filename_Full%, m	;FileRecycle, %FullPath%
+	fileDelete, %FirstHalf%
+	fileDelete, %SecondHalf%
+	fileDelete, %Con_Cat_N_8%
+	fileGetTime, Old_D8 , %FullPath%, m
+	fileSetTime, Old_D8 , %Output_Filename_Full%, m	;FileRecycle, %FullPath%
 
-	Bugga:
+	Check_Output:
 	sleep 500
 	if !fileExist(FullPath)
-		FileMove, Output_Filename_Full, FullPath
+		fileMove, Output_Filename_Full, FullPath
 	else 
-		goto bugga
-	Exit
+		goto Check_Output
+	exit
 } else {
 	runWait, %comspec% /c ffmpeg -i "%FullPath%" -ss %Start_Time% %process_Action% %End_Time% -c:v copy -c:a copy "%Output_Filename_Full%",,Hidden
 	if InvokeVerb(Output_Filename_Full, "Cut", True)
 		{
 		Secs2Sample_End:="",Secs2Sample_Start:="",Output_Filename_Full:=""
-		Exit
+		exit
 		}
 	return
 	}
@@ -1254,26 +1338,18 @@ RC=0. Haven't tried postMessage
 32783 - Show/Hide Playlist (toggle)
 
 32787 - Show/Hide Media Information (toggle)
-
 32789 - Show/Hide Equilizer (toggle)
-
 32791 - Show/Hide Title (toggle)
-
 32794 - Open "Statistics" dialog
-
 32797 - *** Locks up WMP & eats up CPU. Don't know why ***
 32798 - *** Locks up WMP & eats up CPU. Don't know why ***
-
 32805 - "Music" tab
 32806 - "Library" tab
-
 32808 - Play/Pause Track (toggle)
 32809 - Stop
 32810 - Previous Track
 32811 - Next Track
-
 32813 - Fast Forward (toggle)
-
 32815 - Volume Up
 32816 - Volume Down
 32817 - Volume Mute (toggle)
@@ -1306,7 +1382,7 @@ RC=0. Haven't tried postMessage.
 57601 - Open "File Open" dialog RC=FAIL. Use 32861 or postMessage
 57602 - File Close
 
-57665 - Exit
+57665 - exit
 
 
 ;from nowdoing.js in WMPLOC.DLL.MUN/256
