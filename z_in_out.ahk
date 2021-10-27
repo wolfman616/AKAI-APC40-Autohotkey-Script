@@ -10,12 +10,6 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 
 readini() ; load previous midi settings
 
-if A_OSVersion in WIN_NT4,WIN_95,WIN_98,WIN_ME ; if not xp or 2000 quit
-{
-	MsgBox Error Win2k/XP or later minimum.
-	ExitApp
-}
-
 ;SYSTRAY MENU 
 ;==============================================================================
 ; Menu, Tray, NoStandard
@@ -172,59 +166,62 @@ MidiRules: ; Tip is: ++++++ for where you might want to add
 
 
 
+
 if((byte1=103) && (statusbyte=144))  { ; APC BANK BUTTON LIT/  BANK MODEON
-	Bank := 1 
-	Gui, Add, Picture, w784 h467 BackgroundTrans, apc40mk2.png
-	;gui, add, picture, apc40mk2.png,
+	Bank := true		;		 gui, add, picture, apc40mk2.png,
+	Gui, Add, Picture, w784 h467 BackgroundTrans, apc40mk2.png 		
+								  
 	Gui, Show,x400 y400 w790 h475, MIDI IN / OUT, 
-	tooltip, 
+		  
 }
 
-if( (byte1=103) && (statusbyte=128)) { ;APC BANK BUTTON UNLIT/OFF
-	Bank := 0 
-	Gui, Show, , SACK
+if((byte1=103) && (statusbyte=128)) { 							
+	Bank := false 		;		 APC BANK BUTTON UNLIT/OFF
+	Gui, Show, , SumGUi
 	Gui, Hide
 }
 
-
-If((byte1=yMaster) && (statusbyte=FaderSByte)) { ;  APC MASTER FADER   
-	SoundGet, WankingRaw
-	UpperLim := WankingRaw + 10
-	Master_VolumeNewRaw :=  Byte2 / 1.23 
-	if Master_VolumeNewRaw  between 0 and %UpperLim%
-	{
-		Master_VolumeNew := Round(Master_VolumeNewRaw)
-		Soundset,  Master_VolumeNew    ;
-	} Else
-		Traytip,  Main Volume, Attempted Gain diference of +10 Detected 	; add a mitigation
-}
-if((byte1=yFaderGroup) && (statusbyte=180)) { 			;  APC FADER 5
-tooltip xbxbxcb
-	gameraw:=AppVolume("Discord.exe")
-UpperLim := gameraw + 10
-	gameNEWRAW := Byte2 / 1.23
-if gameNEWRAW between 0 and %UpperLim%
-	{
-		gameNEW:=Round(gameNEWRAW)
-		AppVolume("RobloxPlayerBeta.exe").setVolume(gameNEW)
-	} Else
-		Traytip,  game Volume, Attempted Gain diference of +10 Detected		; add a mitigation
+If (( byte1 = yMaster) && (statusbyte = FaderSByte )) 
+{ 	;  APC MASTER FADER   176
+	SoundGet, Vol_Master_Get
+	UpperLim := (Vol_Master_Get + 20)
+	Master_VolumeNewRaw := ( Byte2 * 0.81 ) 
+	if (Master_VolumeNewRaw between 0 and UpperLim ) {
+		Master_VolumeNew := (Round(Master_VolumeNewRaw))
+		Soundset, Master_VolumeNew    
+	} Else {
+		tooltip, % "Master Volume: Attempted Gain diference of +10 Detected"
+		settimer tooloff, -1000
+	}
 }
 
-if((byte1=yFaderGroup) && (statusbyte=181)) { 				;  APC FADER 6
-
-	vlcraw:=AppVolume("VLC.exe")
-	UpperLim := vlcraw + 10
-	VLCNEWRAW := Byte2 / 1.23
-	if VLCNEWRAW between 0 and %UpperLim%
+if (byte1 = yFaderGroup) && (statusbyte = 180 )  {			;  APC FADER 5
+	rblxVol:=round(Byte2 / 1.23)
+	rblxraw:=AppVolume("RobloxPlayerBeta.exe").GetVolume()
+	UpperLim := (rblxraw + 20)
+	rblxrawnew := round(Byte2 / 1.23)
+	if rblxrawnew between 0 and %UpperLim%
 	{
-		VLCNEW:=Round(VLCNEWRAW)
-		AppVolume("VLC.exe").setVolume(VLCNEW)
-	} Else
-		Traytip,  VLC Volume, Attempted Gain diference of +10 Detected		; add a mitigation
+		rblxNEW:=Round(rblxrawnew)
+		AppVolume("RobloxPlayerBeta.exe").setVolume(rblxNEW)
+	} Else {
+		tooltip,  Roblox Volume Attempted Gain diference of +10 Detected		; add a mitigation
+		settimer tooloff, -1000
+	}
 }
 
-if((byte1=yFaderGroup) && (statusbyte=182)) { 				;  APC FADER 7   
+if(( byte1 = yFaderGroup ) && ( statusbyte = 181 ))  {				;  APC FADER 6
+	Vol_VLC_Raw := AppVolume( VLC )
+	Vol_VLC_UpperLim := ( Vol_VLC_Raw + 10 )
+	Vol_VLC_New_Raw := ( Byte2 / 1.23 )
+	if ( Vol_VLC_New_Raw between 0 and Vol_VLC_UpperLim ) {
+		Vol_VLC_New_ := Round(Vol_VLC_New_Raw)
+		AppVolume( VLC ).setVolume(Vol_VLC_New_)
+	} Else
+		traytip, VLC Volume, Attempted Gain diference of +10 Detected		; add a mitigation
+}
+
+if((byte1=yFaderGroup) && (statusbyte=182)) {			;  APC FADER 7   
 	BrowserRAW1:=AppVolume("chrome.exe").GetVolume()
 	BrowserRAW2:=AppVolume("firefox.exe").GetVolume()
 	if BrowserRAW1 {
@@ -239,20 +236,21 @@ if((byte1=yFaderGroup) && (statusbyte=182)) { 				;  APC FADER 7
 		AppVolume("chrome.exe").setVolume(BrowserNEW)
 		AppVolume("firefox.exe").setVolume(BrowserNEW)
 	} Else
-		Traytip,  Browser Volume, Attempted Gain diference of +10 Detected		; add a mitigation
+		traytip,  Browser Volume, Attempted Gain diference of +10 Detected		; add a mitigation
 }
 
-if((byte1=yFaderGroup) && (statusbyte=YfCh8)) {		;  APC FADER 8   
+if((byte1=yFaderGroup) && (statusbyte=YfCh8)) {			;  APC FADER 8 
 	WMPVol:=round(Byte2 / 1.23)
-	wmpraw:=AppVolume("wmplayer.exe").GetVolume()
-	UpperLim := wmpraw  + 20
-	wmprawnew := Byte2 / 1.23
-	if wmprawnew between 0 and %UpperLim%
+	WMPraw:=AppVolume("wmplayer.exe").GetVolume()
+	UpperLim := (WMPraw + 20)
+	WMPrawnew := round(Byte2 / 1.23)
+	if WMPrawnew between 0 and %UpperLim%
 	{
-		wmpNEW:=Round(wmprawnew)
-		AppVolume("wmplayer.exe").setVolume(wmpNEW)
+		WMPNEW:=Round(WMPrawnew)
+		AppVolume("wmplayer.exe").setVolume(WMPNEW)
 	} Else
-		Traytip,  Browser Volume, Attempted Gain diference of +10 Detected		; add a mitigation
+		tooltip,  Browser Volume Attempted Gain diference of +10 Detected		; add a mitigation
+		settimer tooloff, -1000
 }
 
 if((byte1=13) && (statusbyte=176) && (byte2= 1) && (editch8=1)) { ;  APC  Tempo Knob
@@ -1824,6 +1822,9 @@ gosub, midiin_go ; opens the midi input port listening routine
 gosub, midiout ; opens the midi out port
 return
 
+tooloff:
+tooltip
+return
 
 Restart_plx:
 Reload

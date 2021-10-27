@@ -202,6 +202,7 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 InvokeVerb(path, menu, validate=True) {
     objShell := ComObjCreate("Shell.Application")
     if InStr(FileExist(path), "D") || InStr(path, "::{") {
+sleep 20
         objFolder := objShell.NameSpace(path)   
         objFolderItem := objFolder.Self
     } else {
