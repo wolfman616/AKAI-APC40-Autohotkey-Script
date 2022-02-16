@@ -4,12 +4,6 @@ SendMode Input  ; Recommended for new scripts due to its superior speed and reli
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
-
-
-
-
-
-
 this_path := Selected_Files()
 ;tooltip, "%this_path%" 
 return

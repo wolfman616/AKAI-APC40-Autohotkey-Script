@@ -1,7 +1,6 @@
-﻿#SingleInstance force
+﻿#NoEnv
+#SingleInstance force
 SETBATCHLINES -1
-;critical
-SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 ;Menu, Tray, Icon, C:\ICON\32\akaiapc_32.ico
 ;#notrayicon ;this ruins everything
 ;#persistent
@@ -13,53 +12,31 @@ Prev=18810
 Next=18811
 Vol_Up=32815
 Vol_Down=32816
+wmp := new RemoteWMP
 WinTitle=Windows Media Player
-Process, Exist, wmplayer.exe
-ifwinnotexist, Windows Media Player
-	{
-	TrayTip, Windows Media Player, Process found but window Not,3000,2
-	Return
-	}
-Else
-	{
-	PostMessage, 0x111, Stop, 0, ,%WinTitle%
-	sleep, 50
-	PostMessage, 0x111, Next, 0, ,%WinTitle%
-	sleep 50
-	thecall1:
-	gosub thetry
-	if newsong =% oldsong
-		{
-		;tooltip, newsong = oldsong
-		sleep 100
-		gosub thecall1
-		}
-	else
-		{
-		wmp.jump(skipD)
-		sleep 100
-		PostMessage, 0x319, 0, Play, ,%WinTitle%
-		;TOOLTIP, congrats you changed to the next tune you bell
-		}
-	}
-return
+sleep 50
+media := wmp.player.currentMedia
+controls := wmp.player.controls
+newsong= % media.sourceURL
+sleep 50
+Gosub WMP_NEXT
+exit
 
 class RemoteWMP
 {
    __New()  {
       static IID_IOleClientSite := "{00000118-0000-0000-C000-000000000046}"
            , IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
-      Process, Exist, wmplayer.exe
-      if !ErrorLevel
+	Process, Exist, wmplayer.exe
+	if !ErrorLevel
+			{
+			TrayTip, WMP ERROR:, %Error%`n wmplayer.exe not running
+			exit
+			}
+
+	if !this.player := ComObjCreate("WMPlayer.OCX.7")
 		{
-		tooltip, wmplayer.exe is not running
-		settimer ToolTip_Off, -4000
-		exit
-		}
-      if !this.player := ComObjCreate("WMPlayer.OCX.7")
-		{
-        Tooltip, Failed to get WMPlayer.OCX.7 object
-		settimer ToolTip_Off, -4000
+		TrayTip, WMP ERROR:, %error%`nFailed to get WMPlayer.OCX.7 object
 		exit
 		}
       this.rms := IWMPRemoteMediaServices_CreateInstance()
@@ -185,54 +162,70 @@ IUnknown_Release(this_) {
 }
 
 IWMPRemoteMediaServices_GetServiceType(this_, pbstrType)
-{
-   NumPut(DllCall("oleaut32\SysAllocString", "WStr", "Remote", "Ptr"), pbstrType+0, "Ptr")
-   return 0
-}
+	{
+	NumPut(DllCall("oleaut32\SysAllocString", "WStr", "Remote", "Ptr"), pbstrType+0, "Ptr")
+	return 0
+	}
 
 IWMPRemoteMediaServices_GetScriptableObject(this_, pbstrName, ppDispatch)
-{
-   return 0x80004001
-}
+	{
+	return 0x80004001
+	}
 
 IWMPRemoteMediaServices_GetCustomUIMode(this_, pbstrFile)
-{
-   return 0x80004001
-}
+	{
+	return 0x80004001
+	}
 
 IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
-{
-   return IUnknown_QueryInterface(this_, riid, ppvObject)
-}
+	{
+	return IUnknown_QueryInterface(this_, riid, ppvObject)
+	}
 
-
-ToolTip_Off:
-{	
-ToolTip,
-settimer ToolTip_Off, off
+WMP_NEXT:
+Process, Exist, wmplayer.exe
+ifwinnotexist, Windows Media Player
+	{
+	TrayTip, Windows Media Player, Process found but window Not,3000,2
+	Return
+	}
+Else
+	{
+	oldsong:=newsong
+	PostMessage, 0x111, Stop, 0, ,%WinTitle%
+	sleep, 150
+	PostMessage, 0x111, Next, 0, ,%WinTitle%
+	sleep 200
+	thecall1:
+	gosub RECHECK
+	if newsong =% oldsong
+		{
+		traytip Windows Media Player, End of Playlist		
+		exit
+		} else {
+		wmp.jump(skipD)
+		sleep 100
+		PostMessage, 0x319, 0, Play, ,%WinTitle%
+		}
+	}
 return
-}
 
 WMP_Refresh: 
-{
-wmp := new RemoteWMP
-media := wmp.player.currentMedia
-controls := wmp.player.controls
-return
-}
+	{
+	wmp := new RemoteWMP
+	media := wmp.player.currentMedia
+	controls := wmp.player.controls
+	return
+	}
 
-THETRY:
-{
-sleep, 200
-gosub WMP_refresh
-sleep 200
-newsong= % media.sourceURL
-sleep 200
-return
-}
-return
+RECHECK:
+	{
+	sleep, 200
+	gosub WMP_refresh
+	sleep 200
+	newsong= % media.sourceURL
+	sleep 200
+	return
+	}
 
-trycatch:
-tooltip, try
-;Until errorlevel=0
-return
+exitapp

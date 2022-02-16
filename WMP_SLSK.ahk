@@ -3,34 +3,36 @@ SendMode Input
 SetWorkingDir %A_ScriptDir% 
 #singleinstance force
 #notrayicon
+DetectHiddenWindows, On
 wmp := new RemoteWMP
 media := wmp.player.currentMedia
 fullpath:= media.sourceurl
-IfWinNotExist, SoulSeek 
-{
-tooltip, giant throbbing bellend,,,1
-run slsk_rescue.ahk
-reload 
-}
-
-else
-{
-1st:= RegExReplace(fullpath, "^.+\\|\.[^.]+$")
-2nd := RegExReplace(1st, "[\-1234567890&@'~!£$%^&*]")
-MouseGetPos, orig_x, orig_y
-winactivate, SoulSeek
-mousemove, 145, 90,,
-send {LButton}
-send % 3rd := RegExReplace(2nd, "[/_()/]", " ")
-send {enter}
-mousemove, 1208, 230,,
-send {LButton}
-mousemove, orig_x, orig_y, ,
-exit
-;"/[\-_]/", " "
-}
-class RemoteWMP
-{
+Process, Exist, slsk2.exe
+     if !ErrorLevel
+		tooltip, error slsk not open
+	else
+		{
+		1st:= RegExReplace(fullpath, "^.+\\|\.[^.]+$")
+		2nd := RegExReplace(1st, "[\-1234567890&@'~!£$%^&*]")
+		MouseGetPos, orig_x, orig_y
+WinGet, slskpid, pid, SoulSeek [headcrack] - [Transfers]
+WinGet, hWindow, ID, SoulSeek [headcrack] - [Transfers]
+Winshow , SoulSeek [headcrack] - [Transfers]
+WinActivate  SoulSeek
+		;winactivate, slsk2.exe
+		mousemove, 145, 90,,
+		send {LButton}
+		send % 3rd := RegExReplace(2nd, "[/_()/]", " ")
+		send {enter}
+		mousemove, 1421, 243,,
+		send {LButton}
+		mousemove, orig_x, orig_y, 
+,
+		exit
+		;"/[\-_]/", " "
+		}
+		class RemoteWMP
+		{
    __New()  {
       static IID_IOleClientSite := "{00000118-0000-0000-C000-000000000046}"
            , IID_IOleObject     := "{00000112-0000-0000-C000-000000000046}"
