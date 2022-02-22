@@ -1,45 +1,82 @@
-﻿#SingleInstance force
+﻿;FOLDER BACKGROUND VAR - HIGHLIGHT PASTE
+#SingleInstance force
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 ;#NoTrayIcon
 ;#persistent
-Menu, Tray, Icon, copy.ico
-Stop=18809
-Play=0x2e0000
-Pause=32808
-Prev=18810
-Next=18811
-Vol_Up=32815
-Vol_Down=32816
+;Menu, Tray, Icon, copy.ico
+global Path_wmpScr 	:= 	"wmp_Matt.ahk ahk_class AutoHotkey"
+global wmp
+global media
+global controls
+global WinTitle
+global Path2File
+global newsong
+global path2paste
+global Stop=18809
+global Play:=0x2e0000
+global Pause=32808
+global Prev=18810
+global Next=18811
+global Vol_Up=32815
+global Vol_Down=32816
+global name
+global dir
+global bum
+global ext
+global name_no_ext
+global drive
+
+onexit() { 
+	WMP 	:= Delete RemoteWMP
+}
+
+SplitPath, 1, name, dir, ext, name_no_ext, drive
+OldClip := Clipboard
 WinTitle=Windows Media Player
 wmp:= new RemoteWMP
 sleep, 150
-media := wmp.player.currentMedia
-sleep, 50
+media =% wmp.player.currentMedia
+sleep, 20
 Path2File:=media.sourceURL
+newsong= % Path2File
 path2paste=%1%
-if InvokeVerb(Path2File, "Cut")
-{ 
+result := Send_WM_COPYDATA("pastenskip", Path_wmpScr)
+sleep 4000
+try 
+	bum:=media.sourceURL
+catch
+	sleep 120
+	
+if bum != Path2File
+
+if (InvokeVerb(Path2File, "Cut")) {
     Process,Exist
     hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
 }
-
-tooltip, Releasing File, 4000, 3000
-sleep 250
-F2mName := RegExReplace(Path2File, "^.+\\|\.[^.]+$")
-runwait wmp_next.ahk
-
-sleep 50
-;filemove, %path%, %1%
-if InvokeVerb(path2paste, "Paste")
-{ 	
-	tooltip, moved %F2mName% to %1%, 4000, 3000
-	settimer, tooloff, 4000
-    Process,Exist
+fuckitnigger:
+sleep 300
+if (InvokeVerb(path2paste, "Paste")) { 	
+	Traytip, Tune Moved, moved %name_no_ext% `nto %dir%
+	Process,Exist
     hwnd:=WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
+} else
+	goto fuckitnigger
+	
+RestoreClip:
+sleep 300
+try {
+	if !clipboard {
+		clipboard:=oldclip
+		sleep 30
+		Clipboard := 
+		sleep 30
+		clipboard:=oldclip
+	}
+} catch {
+	sleep 50
+	goto RestoreClip
 }
-	;Traytip, Windows Media Player, Moved prev to %1%, 3, 1
-	settimer, tooloff, -100
-	return
+Exit
 
 
 class RemoteWMP
@@ -65,8 +102,7 @@ class RemoteWMP
    }
 }
 
-IWMPRemoteMediaServices_CreateInstance()
-{
+IWMPRemoteMediaServices_CreateInstance() {
    static vtblUnk, vtblRms, vtblIsp, vtblOls, vtblPtrs := 0, size := (A_PtrSize + 4)*4 + 4
    if !VarSetCapacity(vtblUnk)  {
       extfuncs := ["QueryInterface", "AddRef", "Release"]
@@ -157,12 +193,11 @@ IUnknown_QueryInterface(this_, riid, ppvObject)
 
 IUnknown_AddRef(this_)
 {
-   off := NumGet(this_+0, A_PtrSize, "UInt")
-   iunk := this_-off
-   NumPut((_refCount := NumGet(iunk+0, (A_PtrSize + 4)*4, "UInt") + 1), iunk+0, (A_PtrSize + 4)*4, "UInt")
-sleep, 50 
-sleep, 50 
-   return _refCount
+	off := NumGet(this_+0, A_PtrSize, "UInt")
+	iunk := this_-off
+	NumPut((_refCount := NumGet(iunk+0, (A_PtrSize + 4)*4, "UInt") + 1), iunk+0, (A_PtrSize + 4)*4, "UInt")
+	sleep, 50 
+	return _refCount
 }
 
 IUnknown_Release(this_) {
@@ -202,7 +237,6 @@ IServiceProvider_QueryService(this_, guidService, riid, ppvObject)
 InvokeVerb(path, menu, validate=True) {
     objShell := ComObjCreate("Shell.Application")
     if InStr(FileExist(path), "D") || InStr(path, "::{") {
-sleep 20
         objFolder := objShell.NameSpace(path)   
         objFolderItem := objFolder.Self
     } else {
@@ -228,6 +262,74 @@ sleep 20
 return
 ; settimer, tooloff, -2000
 ; return
+
+WMP_NEXT:
+Process, Exist, wmplayer.exe
+ifwinnotexist, Windows Media Player
+{
+	TrayTip, Windows Media Player, Process found but window Not
+	Return
+} Else {
+	oldsong:=newsong
+	PostMessage, 0x111, Stop, 0, ,%WinTitle%
+	sleep, 150
+	PostMessage, 0x111, Next, 0, ,%WinTitle%
+	sleep 200
+	thecall1:
+	gosub RECHECK
+	if newsong =% oldsong
+	{
+		traytip Windows Media Player, End of Playlist		
+		exit
+	} else {
+		wmp.jump(skipD)
+		sleep 100
+		PostMessage, 0x319, 0, Play, ,%WinTitle%
+		sleep 300
+		if !(wmp.player.playState = 3)
+			msgbox error not playing trying again
+		
+	}
+	return
+}
+
+WMP_Refresh: 
+wmp := new RemoteWMP
+media := wmp.player.currentMedia
+controls := wmp.player.controls
+return
+
+
+RECHECK:
+sleep, 200
+gosub WMP_refresh
+sleep 200
+newsong= % media.sourceURL
+sleep 200
+return
+
+
+Send_WM_COPYDATA(ByRef StringToSend, ByRef TargetScriptTitle)  ; ByRef saves a little memory in this case.
+; This function sends the specified string to the specified window and returns the reply.
+; The reply is 1 if the target window processed the message, or 0 if it ignored it.
+{
+    VarSetCapacity(CopyDataStruct, 3*A_PtrSize, 0)  ; Set up the structure's memory area.
+    ; First set the structure's cbData member to the size of the string, including its zero terminator:
+    SizeInBytes := (StrLen(StringToSend) + 1) * (A_IsUnicode ? 2 : 1)
+    NumPut(SizeInBytes, CopyDataStruct, A_PtrSize)  ; OS requires that this be done.
+    NumPut(&StringToSend, CopyDataStruct, 2*A_PtrSize)  ; Set lpData to point to the string itself.
+    Prev_DetectHiddenWindows := A_DetectHiddenWindows
+    Prev_TitleMatchMode := A_TitleMatchMode
+    DetectHiddenWindows On
+    SetTitleMatchMode 2
+    TimeOutTime := 4000  ; Optional. Milliseconds to wait for response from receiver.ahk. Default is 5000
+    ; Must use SendMessage not PostMessage.
+    SendMessage, 0x4a, 0, &CopyDataStruct,, %TargetScriptTitle%,,,, %TimeOutTime% ; 0x4a is WM_COPYDATA.
+    DetectHiddenWindows %Prev_DetectHiddenWindows%  ; Restore original setting for the caller.
+    SetTitleMatchMode %Prev_TitleMatchMode%         ; Same.
+    return ErrorLevel  ; Return SendMessage's reply back to our caller.
+}
+
 
 tooloff:
 {
