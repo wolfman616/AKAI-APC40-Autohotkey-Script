@@ -8,13 +8,13 @@ detecthiddenwindows on
 detecthiddentext on 
 #singleinstance force
 settitlematchmode 2 
-          
 SetWorkingDir %A_ScriptDir% 
-#include C:\Script\AHK\Z_MIDI_IN_OUT\extractorgui.ahk
-init:
 
-msgbox
-gosub, tits
+init:
+; Extract and trim with vocal / instrumental AI  Requires FFMPEG / Anaconda / Python / Spleeter 
+														
+#include C:\Script\AHK\Z_MIDI_IN_OUT\extractorgui.ahk 		
+gosub, varz
 gosub, init_menu
 gosub, main
 return
@@ -33,14 +33,11 @@ if !(fileexist(c0nda))
 
 Start:
 process exist, ahk_exe WMPlayer.exe
-if Errorlevel {
-	goto runit
-	runit:
-	run "C:\Program Files\Windows Media Player\WMPlayer.exe"
-	return
-}
+if Errorlevel 
+	run,% "C:\Program Files\Windows Media Player\WMPlayer.exe"
+regWrite, REG_DWORD,% (hkcuWMPprefs := "HKEY_CURRENT_USER\Software\Microsoft\MediaPlayer\Preferences"),% "Volume",% "1"
 
-run WMP_colour_controls_test.ahk
+run,%	"WMP_colour_controls_test.ahk"
 WMP 		:= 	new RemoteWMP
 Media 		:= 	WMP.player.currentMedia
 oldsong 	:= 	Media.sourceURL
@@ -75,9 +72,8 @@ onexit() {
 	if (fileexist(extract_data_Concat)) {
 		fileDelete, %extract_data_Concat%
 		msgbox post gasm shame`nfound concat whilst cleaning up
-	}
-}
-;newsong= % Media.sourceURL
+}	}
+
 return
 
 Cutcurrent:
@@ -89,7 +85,7 @@ if (InvokeVerb(Path2File, "Cut")) {
 	hwnd := WinExist("ahk_class tooltips_class32 ahk_pid " Errorlevel)
 } 
 menu, tray, Icon, % "copy.ico"
-Monster_Clip 	:= 	clipboard
+Monster_Clip  :=  clipboard
 settimer, Clip_Commander, -1000
 return
 
@@ -99,26 +95,27 @@ return
 
 PauseToggle:
 if !WMP
-	wmp 	:= 	new remotewmp
+	wmp  :=  new remotewmp
 WMP.togglePause()
 return
 
 JumpPrev:
-cur_ := "AniCur_Pink"
-settimer, AniCur_, -2, -2147483648
+;cur_ := "AniCur_Pink"
+;settimer, AniCur_, -2, -2147483648
 
 if !WMP {
-	WMP 	:= 	Delete RemoteWMP
-	WMP 	:= 	New RemoteWMP
+	WMP 	:= 	Delete 	RemoteWMP
+	WMP 	:= 	New 	RemoteWMP
 }
 WMP.player.Controls.Stop()
 sleep, 50
 WMP.player.Controls.Previous()
 sleep, 50
- Media 	:= 	WMP.player.currentMedia
+Media   := 	 WMP.player.currentMedia
+ 
 thecall2:
 gosub, WMP_Refresh_2
-if (newsong = oldsong) {
+if (NewSong = oldsong) {
 	sleep, 100
 	gosub, thecall2
 } else {
@@ -135,7 +132,7 @@ sendinput, {Media_Next}, chrome
 
 JumpNext:
 settimer, PlayPstateUpdateInterval, off
-Real_pos := False, genre := "", gnr := "",	newsong	:= ""
+Real_pos := False, genre := "", gnr := "",	NewSong	:= ""
 if !WMP
 	WMP	:= 	new RemoteWMP
 Controls.Stop()
@@ -145,18 +142,23 @@ sleep 20
 WMP.jump(StartPos_Offset)
 sleep 50
 WMP.player.Controls.play()
-settimer, bumhole, -1000
 return
 
-bumhole:
+Precom_pair:
 ;cur_ := "AniCur_bfly"
 ;settimer, AniCur_, -200, -2147483648
-newsong 	:=  WMP.player.currentMedia.sourceURL
-iD3full 	:= 	iD3_StringGet2(newsong)
+try
+	NewSong  :=  WMP.player.currentMedia.sourceURL
+catch 
+{
+	sleep 350
+	gosub Precom_pair
+}
+iD3full  :=  iD3_StringGet2(NewSong)
 
 thecall1:
 sleep, 50
-if (newsong == oldsong) {
+if (NewSong == oldsong) {
 	faggottry 	:= 	True
 	if !tries
 		tries 	:= 	1
@@ -167,13 +169,13 @@ if (newsong == oldsong) {
 	}
 	if (tries < 5) {
 		sleep 300
-		goto bumhole
+		goto Precom_pair
 	}
 	else return
 } else {
 	faggottry 	:= 	false
-	iD3full 	:= 	iD3_StringGet2(newsong)
-	newsong := oldsong
+	iD3full 	:= 	iD3_StringGet2(NewSong)
+	NewSong := oldsong
 	real_pos 	:= 	getpos() 
 	if Real_pos {
 		sleep 500
@@ -232,7 +234,7 @@ SearchExplorer:
 gosub, WMP_Refresh_2
 gosub, Genre_Search
 trayTip, Windows Media Player, path
-FullPath=%newsong%
+FullPath=%NewSong%
 SplitPath, FullPath, , , , OutNameNoExt
 1st := regExReplace(OutNameNoExt,Needle4, " ")
 2nd := regExReplace(1st,Needle2, " ")
@@ -250,11 +252,11 @@ return
 Genre_Search:
 p 		:= 	1, Matched_String := "",	genre := ""
 o		:= 	comobjcreate("Shell.Application")
-SplitPath,newsong,file,directory,ext
+SplitPath,NewSong,file,directory,ext
 od		:= 	o.namespace(directory)
 of		:= 	od.parsename(file)
 gnr		:= 	od.getdetailsof(of,16) ; genre
-while p := 	RegExMatch(newsong, Genres, Matched_String, p + StrLen(Matched_String)) {
+while p := 	RegExMatch(NewSong, Genres, Matched_String, p + StrLen(Matched_String)) {
 	switch Matched_String {
 		case "dnb":
 			StartPos_Offset:=86,   p:=999, Genre:="dnb", 	Search_Root:="S:\- DNB"
@@ -371,9 +373,9 @@ if !WMP {
 sleep, 		100
 gosub, 		WMP_refresh
 sleep, 		100
-newsong 	=% 		WMP.player.currentMedia.sourceURL
-id3Art 		:= 	iD3_Artist(newsong)
-id3Ttl  	:= 	iD3_Track(newsong)
+NewSong 	=% 		WMP.player.currentMedia.sourceURL
+id3Art 		:= 	iD3_Artist(NewSong)
+id3Ttl  	:= 	iD3_Track(NewSong)
 sleep, 		100
 return
 
@@ -590,15 +592,15 @@ class RemoteWMP {
  	TogglePause() {
 		trigger_PL 	:= False
 		trigger_pa	:= False
-		newsong 	=% Media.sourceURL
-		newiD3full 	:= iD3_StringGet(newsong)
-		;id3Art 	:= iD3_Artist(newsong)
-		;id3Ttl  	:= iD3_Track(newsong)
+		NewSong 	=% Media.sourceURL
+		newiD3full 	:= iD3_StringGet(NewSong)
+		;id3Art 	:= iD3_Artist(NewSong)
+		;id3Ttl  	:= iD3_Track(NewSong)
 		try
-			newsong =% Media.sourceURL
+			NewSong =% Media.sourceURL
 		catch 
 			sleep, 300
-		SplitPath, newsong,,, OutExtension, OutNameNoExt,
+		SplitPath, NewSong,,, OutExtension, OutNameNoExt,
 		grontle:
 		sleep, 250
 		try {
@@ -1105,7 +1107,7 @@ if togl_numpad {
 return
 
 zz:
-TOOLTIP FAGS
+TOOLTIP FGS
 bt := a_thishotkey
 if (bt contains "$" &&  bt != $)
 	bt := strreplace(	bt, "$") 
@@ -1127,18 +1129,18 @@ playstate	:=
 sleep, 		200
 WMP 		:= 	new RemoteWMP
 Media 		:= 	WMP.player.currentMedia
-newsong 	=% 	Media.sourceURL
+NewSong 	=% 	Media.sourceURL
 playstate 	:= 	WMP.player.playState
 sleep, 		300
 	
-IF (OLDSONG != 	newsong) {
+IF (OLDSONG != 	NewSong) {
 	trigger_PL 	:= 	False
 	trigger_pa	:= 	False
-	newiD3full 	:= 	iD3_StringGet(newsong)
-	id3Art 		:= 	iD3_Artist(newsong)
-	id3Ttl  	:= 	iD3_Track(newsong)
-	oldsong 	:= 	newsong
-	SplitPath, 	newsong,,, OutExtension, OutNameNoExt
+	newiD3full 	:= 	iD3_StringGet(NewSong)
+	id3Art 		:= 	iD3_Artist(NewSong)
+	id3Ttl  	:= 	iD3_Track(NewSong)
+	oldsong 	:= 	NewSong
+	SplitPath, 	NewSong,,, OutExtension, OutNameNoExt
 	if pastenonext {
 		pastenonext := False
 		iD3full := iD3full2
@@ -1147,8 +1149,13 @@ IF (OLDSONG != 	newsong) {
 		goto POST_GASM
 }	} 
 
-playstate := WMP.player.playState
-sleep, 900 
+ps1212:
+try
+	playstate := WMP.player.playState
+catch {
+	sleep, 900 
+	goto ps1212
+}
 if (playstate = 3) { ; Playing = 3
 	trigger_pa	:= 	False
 	if !trigger_PL {
@@ -1157,7 +1164,7 @@ if (playstate = 3) { ; Playing = 3
 		sleep, 100
 		trayTip, % id3Art " - " id3Ttl, % "WMP Now-Playing", 3, 33
 		menu, tray, Tip, % "Windows Media Player - Playing`n" 	newiD3full
-		OLDSONG := newsong
+		OLDSONG := NewSong
 	}
 } else {
 	if (playstate = 2 or playstate = 1) {
@@ -1288,7 +1295,7 @@ gethandle() 	{
 }	}	}
 
 getpos() {
-	id3fullstr 		:= 	iD3_StringGet2(newsong)
+	id3fullstr 		:= 	iD3_StringGet2(NewSong)
 	if 	!id3fullstr
 		id3fullstr 	:= 	iD3_StringGet2(oldsong)
 
@@ -1311,7 +1318,6 @@ getpos() {
 	else return real_pos
 }
 init_menu:
-
 ; Iconz := []
 ; Iconz.Push(LoadPicture(a_scriptDir . "\WMP.ico"))
 icondll 	:= 		a_scriptDir . "\icons.dll"
@@ -1358,7 +1364,8 @@ return
 scpl:
 runwait %COMSPEC% /C %scpl%,, hide
 return
-tits:
+
+varz:
 global 	DEBUGTT := TRUE
 global 	tt 		:= 500
 global 	togl_numpad := true
@@ -1405,9 +1412,9 @@ global 	ic1					:= 	"WMP.ico"
 global 	ic2					:= 	"WMP2.ico"
 global 	splitstr 			:= 	"Split @ a)"	
 global 	del2endstr 			:= 	"Delete to end"
-myDoxdir 					:= 	"S:\Documents\"
+myDoxdir 					:= 	"d:\Documents\"
 MyIconsdir 					:= 	myDoxdir . "My Pictures\Icons\"
-AniCurPrefix				:= 	( MyIconsdir . "- CuRS0R\" )
+AniCurPrefix				:= 	( MyIconsdir . "- CuRS0R\_ ANi\" )
 global 	AniCur_fprint		:=	( AniCurPrefix . "MY_BUSY.ANI" )
 global 	AniCur_hand			:=	( AniCurPrefix . "HAND.ANI" )
 global 	AniCur_Munch		:=	( AniCurPrefix . "CY_04BUS.ANI" )
@@ -1461,13 +1468,13 @@ global 	AniCur_orbit		:=	( AniCurPrefix . "SF_04BUS.ANI" )
 global 	AniCur_95busy1		:=	( AniCurPrefix . "WH_BUSY.ANI" )
 global 	AniCur_95busy2		:=	( AniCurPrefix . "WI_BUSY.ANI" )
 global 	c0nda 				:= 	("C:\Users\" . A_UserName . "\anaconda3")
-scpl 	:= 	(("" "C:\Windows\system32\rundll32.exe" "") . (" shell32.dll,Control_RunDLL mmsys.cpl,,playback"))
+global  scpl 				:= 	(("" "C:\Windows\system32\rundll32.exe" "") . (" shell32.dll,Control_RunDLL mmsys.cpl,,playback"))
 global 	SLsk_Rescue 		:= 	"C:\Script\AHK\Z_MIDI_IN_OUT\slsk_rescue.ahk",
 global 	ytsearchstr			:= 	"https://www.youtube.com/results?search_query="
 global 	Needle3 			:= 	"( . )|(^[a-z][\s])|( )|( )|( )|[.]"
 global 	Needle2 			:= 	"i)(\s[a-z]{1,2}\s)"
-global 	WMP, global Media, global Controls, global File2Del, global oldsong, global playstate, global newsong, global Path2File, global WMP2del, global Media2del, global path2paste, global gnr, global choice, global Output_FullUnc, global checkbox_Height := "h15", global Play := 0x2e0000, global Stop = 18809, global Prev = 18810, global Next = 18811, global Pause = 32808, global Vol_Up = 32815,  global Vol_Down = 32816 
-Global StartPos_Offset := 4, global Search_Root := "", global Genre := ""
+global 	WMP, global Media, global Controls, global File2Del, global oldsong, global playstate, global NewSong, global Path2File, global WMP2del, global Media2del, global path2paste, global gnr, global choice, global Output_FullUnc, global checkbox_Height := "h15", global Play := 0x2e0000, global Stop = 18809, global Prev = 18810, global Next = 18811, global Pause = 32808, global Vol_Up = 32815,  global Vol_Down = 32816 
+global StartPos_Offset := 4, global Search_Root := "", global Genre := ""
 global 	extract_data_Concat	:=	"c:\out\temp.txt" 
 global 	Needle4 			:=	"i)[1234567890.'`)}{(_]|(-khz)(rmx)|(remix)|(mix)|(refix)|(vip)|(featuring)|( feat)|(ft)|(rfl)|(-boss)(-sour)|(its)|(it's)|(-)|(-bpm)|(edit)" 
 global 	Genres				:=	"i)(dnb)|(reggae)|(riddim)|(hiphop)|(garage)|(rock)|(ambient)|(samples)|(my music)|(audiobooks)|(sLSk)|(FOAD)"
