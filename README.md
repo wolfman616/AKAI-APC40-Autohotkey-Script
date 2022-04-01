@@ -1,6 +1,5 @@
-# AKAI-APC40-Autohotkey-Script
-Full MIDI IN / OUT
-
+# AKAI_APC40_Autohotkey_Midi_&_Script_host
+Full MIDI IN / OUT via WinApi calls
 Z_in_out.ahk is the main script
 
 WMP scripts are for controlling Windows Media Player
