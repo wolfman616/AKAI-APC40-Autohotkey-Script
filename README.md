@@ -8,8 +8,12 @@ Allowing offloading of regular and on demand WMP "Playing" status updates
 (and confirmations on state changes in playing /not playing 
 (mainly for the flashing light paused indicator and later superfluously to asssis in paused track skip))
 
-Cut currently playing in WMP to clipboard
-Paste context Menu
+rotary values read/write and autosave for a sysEx work around.
+colours from comms spec. transcribed and pallete script working to view and select colours for leds
+gui with gdi+ and low latency high performance interface wtih intruments controls.
+
+Cut currently playing in WMP to clipboard. Paste context Menus and more with ffmpeg scripts.
+reworked timerstructure allows for simultaneous running of numerous subroutines simultaneously with full response.
 
 Assign any applications Volume to any Y Fader
 Assign any applications Volume to X Fader A or B
