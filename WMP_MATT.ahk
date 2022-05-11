@@ -171,7 +171,7 @@ if (NewSong == oldsong) {
 		sleep 300
 		goto Precom_pair
 	}
-	else return
+	else tries 	:= 	0
 } else {
 	faggottry 	:= 	false
 	iD3full 	:= 	iD3_StringGet2(NewSong)
@@ -300,56 +300,6 @@ while p := 	RegExMatch(NewSong, Genres, Matched_String, p + StrLen(Matched_Strin
 	}	
 return
 
-iD3_StringGet(tune="") {
-	SplitPath,tune,file,directory,ext
-	p 		:= 	1, 	Matched_String := "",	genre := ""
-	o		:= 	comobjcreate("Shell.Application")
-	oo		:= 	o.namespace(directory)
-	of		:= 	oo.parsename(file)
-	rtist 	:=	oo.getdetailsof(of,13)
-	gnr		:= 	oo.getdetailsof(of,16) ; genre
-	titL 	:=	oo.getdetailsof(of,21)
-	if (!rtist || !titL)
-		return False
-	return % (rtist . " - " . titL)
-}
-iD3_StringGet2(tune="") {
-	SplitPath,tune,file,directory,ext
-	p 		:= 	1, 	Matched_String := "",	genre := ""
-	o		:= 	comobjcreate("Shell.Application")
-	oo		:= 	o.namespace(directory)
-	of		:= 	oo.parsename(file)
-	rtist 	:=	oo.getdetailsof(of,13)
-	gnr		:= 	oo.getdetailsof(of,16) ; genre
-	titL 	:=	oo.getdetailsof(of,21)
-	if (!rtist || !titL)
-		return False
-	return % (titL . " - " . rtist)
-}
-
-iD3_Artist(tune="") {
-	SplitPath,tune,file,directory,ext
-	p 		:= 	1, 	Matched_String := "",	genre := ""
-	o		:= 	comobjcreate("Shell.Application")
-	oo		:= 	o.namespace(directory)
-	of		:= 	oo.parsename(file)
-	rtist 	:=	oo.getdetailsof(of,13)
-	if !rtist
-		return False
-	return rtist
-}
-
-iD3_Track(tune="") {
-	SplitPath,tune,file,directory,ext
-	p 		:= 	1, 	Matched_String := "",	genre := ""
-	o		:= 	comobjcreate("Shell.Application")
-	oo		:= 	o.namespace(directory)
-	of		:= 	oo.parsename(file)
-	titL 	:=	oo.getdetailsof(of,21)
-	if !titL
-		return False
-	return titL
-}
 
 WMP_Refresh: 
 if !WMP {
@@ -981,18 +931,6 @@ Receive_WM_COPYDATA(wParam, lParam) {
 	settimer, % CopyOfData, -1
 }
 
-Pstate(Timers_State="") {
-	switch Timers_State {
-		case On:
-			IconChangeInterval 		:= 	"700"
-			PstateUpdateInterval 	:=	"4400"
-		case Off:
-			IconChangeInterval 		:= 	Off
-			PstateUpdateInterval 	:=	"14400"
-	}
-	settimer, Icon_Alternate, %IconChangeInterval%
-	settimer, PlayPstateUpdateInterval, %PstateUpdateInterval%
-}
 
 Open_Containing:
 if !WMP {
